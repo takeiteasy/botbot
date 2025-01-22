@@ -1,0 +1,9 @@
+.DS_Store
+**/.DS_Store
+*.pyc
+.idea/
+.venv/
+__pycachce__/
+casino/__pycachce__/
+*.iml
+build/
