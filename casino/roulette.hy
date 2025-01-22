@@ -1,5 +1,5 @@
-(import .game *)
+(import .croupier *)
 
-(defclass Roulette [CasinoGame]
+(defclass Roulette [Croupier]
   (defn __init__ [self]
     (.__init__ (super))))
