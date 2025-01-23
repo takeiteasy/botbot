@@ -30,10 +30,11 @@
 
 (defmacro defn/db [name params #* body]
   `(defn ~name ~params
-     (let [result None]
-       (with-db
-         (setv result ~@body))
-       result)))
+     ~(let [result (hy.gensym)]
+        `(do
+           (with-db
+             (setv ~result ~@body))
+           ~result))))
 
 (defn/db find-user [uid]
          (.get Player :uid uid))
