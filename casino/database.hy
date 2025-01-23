@@ -36,10 +36,10 @@
        result)))
 
 (defn/db find-user [uid]
-  (.get Player :uid uid))
+         (.get Player :uid uid))
 
 (defn/db new-user [uid]
-  (Player :uid uid :balance **default-balance**))
+         (Player :uid uid :balance **default-balance**))
 
 (defn resolve-user-stakes []
   (with-db
@@ -56,3 +56,27 @@
             player (.get Player :uid bet.user)]
         (when (and player (in winner bet.numbers))
           (setv player.balance (+ player.balance (+ bet.amount (* bet.amount bet.multiplier)))))))))
+
+(defn current-user-stake [uid]
+  (if (.hexists **cache** "stakes" uid)
+    (int (.hget **cache** "stakes" uid))
+    0))
+
+(defn append-stake [uid amount]
+  (if (.hexists **cache** "stakes" uid)
+    (.hincrby **cache** "stakes" uid amount)
+    (.hset **cache** "stakes" uid amount)))
+
+(defclass InvalidUser [Exception]
+  (defn __str__ [self]
+    "You are not registered, type `!register` to start!"))
+
+(defclass InsufficientFundsError [Exception]
+  (defn __init__ [self amount total]
+    (setv
+      self.amount amount
+      self.total total)
+    (Exception.__init__ self))
+
+  (defn __str__ [self]
+    f"Cannot place bet for `${self.amount}` you only have `${self.total}` available"))
