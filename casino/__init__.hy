@@ -25,8 +25,9 @@
   (let [player (find-user cmd.user.id)]
     (await (cmd.reply (if player
                         (let [stake (current-user-stake player.uid)]
-                          f"Your total balance is ${player.balance} with ${(- player.balance stake)} available"
-                          f"Your balance is ${player.balance}")
+                          (if (> stake 0)
+                            f"Your total balance is ${player.balance} with ${(- player.balance stake)} available"
+                            f"Your balance is ${player.balance}"))
                         "You are not registered, please type `!register` to begin")))))
 
 (defn :async run []
