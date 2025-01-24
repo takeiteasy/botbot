@@ -1,6 +1,4 @@
-(import pyray *)
 (import asyncio)
-(import re)
 (import twitchAPI.twitch [Twitch])
 (import twitchAPI.oauth [UserAuthenticator])
 (import twitchAPI.type [AuthScope ChatEvent])
@@ -28,15 +26,17 @@
       (self.chat.register-command "register" self.on-register)
       (self.chat.register-command "balance" self.on-balance)
       (self.chat.register-command "bet" self.on-bet)
-      (self.chat.start))
-    (setv self.croupier (Croupier)))
+      (self.chat.start)))
 
   (defn :async close [self]
     (self.chat.stop)
     (await (self.twitch.close)))
 
   (defn :async on-ready [self event]
-    (await (event.chat.join-room (read-file "twitch-channel.txt"))))
+    (await (event.chat.join-room (read-file "twitch-channel.txt")))
+    (setv
+      self.croupier (Croupier)
+      self.bets (Queue)))
 
   (defn :async on-register [self cmd]
     (try
