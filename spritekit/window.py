@@ -362,6 +362,7 @@ class Window:
             if event.type == pg.QUIT:
                 self._open = False
             else:
+                used = False
                 if event.type == pg.VIDEORESIZE:
                     self._width = event.w
                     self._height = event.h

@@ -2,21 +2,6 @@ import moderngl as mgl
 from glsl_shaderinfo import get_info
 from .disposable import Disposable
 
-class Uniforms:
-    def __getitem__(self, index):
-        if not hasattr(self, index):
-            raise ValueError(f"Invalid uniform {index}")
-        return getattr(self, index)
-
-    def __setitem__(self, index):
-        if not hasattr(self, index):
-            raise ValueError(f"Invalid uniform {index}")
-        setattr(self, index)
-
-    def apply(self, program: Program):
-        for key in list(vars(self).keys()):
-            program.program[key].write(getattr(self, key))
-
 class Program(Disposable):
     vertex_source = None
     fragment_source = None
@@ -47,23 +32,23 @@ class Program(Disposable):
         self.fs_out = get_values(fragment_info.outputs)
         self.program = self.ctx.program(self.vertex_source, self.fragment_source)
 
-    @property
-    def attr_layout(self):
-        types = []
-        names = []
-        for name, type_spec in self.vs_in.items():
-            match type_spec:
-                case 'Vec2':
-                    type_spec = '2f'
-                case 'Vec3':
-                    type_spec = '3f'
-                case 'Vec4':
-                    type_spec = '4f'
-                case _:
-                    raise ValueError(f"Unknown shader attribute: {name}, {type_spec}")
+        @property
+        def attr_layout(self):
+            types = []
+            names = []
+            for name, type_spec in self.vs_in.items():
+                match type_spec:
+                    case 'Vec2':
+                        type_spec = '2f'
+                    case 'Vec3':
+                        type_spec = '3f'
+                    case 'Vec4':
+                        type_spec = '4f'
+                    case _:
+                        raise ValueError(f"Unknown shader attribute: {name}, {type_spec}")
                 names.append(name)
                 types.append(type_spec)
-        return names, ' '.join(types)
+            return names, ' '.join(types)
 
     @property
     def valid(self):
@@ -72,3 +57,18 @@ class Program(Disposable):
     def release(self):
         if self.program is not None:
             self.program.release()
+
+class Uniforms:
+    def __getitem__(self, index):
+        if not hasattr(self, index):
+            raise ValueError(f"Invalid uniform {index}")
+        return getattr(self, index)
+
+    def __setitem__(self, index):
+        if not hasattr(self, index):
+            raise ValueError(f"Invalid uniform {index}")
+        setattr(self, index)
+
+    def apply(self, program: Program):
+        for key in list(vars(self).keys()):
+            program.program[key].write(getattr(self, key))
