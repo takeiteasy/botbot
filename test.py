@@ -11,12 +11,5 @@ with sk.window() as window:
     print(test)
     for delta in window.loop():
         for event in window.poll:
-            match event.type:
-                case pg.KEYDOWN:
-                    match event.key:
-                        case pg.K_ESCAPE:
-                            window.quit()
-                        case _:
-                            print(event.key)
-                case _:
-                    print(event)
+            if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
+                window.quit()
