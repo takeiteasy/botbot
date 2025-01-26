@@ -52,7 +52,7 @@ class ModernGLRenderer(BaseOpenGLRenderer):
         assert isinstance(self.ctx, mgl.Context)
 
         super().__init__()
-        
+
         self.io.display_size = self.wnd.size
         self.io.display_fb_scale = (1, 1)
 
@@ -159,7 +159,7 @@ class ModernGLRenderer(BaseOpenGLRenderer):
                     mgl.TRIANGLES, vertices=command.elem_count, first=idx_pos
                 )
                 idx_pos += command.elem_count
-                
+
         self.ctx.scissor = None
 
     def _invalidate_device_objects(self):
@@ -236,26 +236,26 @@ class PygameRenderer(ModernGLRenderer):
                     code = ord(char)
                     if 0 < code < 0x10000:
                         io.add_input_character(code)
-                io.keys_down[self._custom_key(e.key)] = True
+                        io.keys_down[self._custom_key(e.key)] = True
             case pg.KEYDOWN | pg.KEYUP:
                 if e.type == pg.KEYUP:
                     io.keys_down[self._custom_key(e.key)] = False
-                io.key_ctrl = (
-                    io.keys_down[self._custom_key(pg.K_LCTRL)] or
-                    io.keys_down[self._custom_key(pg.K_RCTRL)]
-                )
-                io.key_alt = (
-                    io.keys_down[self._custom_key(pg.K_LALT)] or
-                    io.keys_down[self._custom_key(pg.K_RALT)]
-                )
-                io.key_shift = (
-                    io.keys_down[self._custom_key(pg.K_LSHIFT)] or
-                    io.keys_down[self._custom_key(pg.K_RSHIFT)]
-                )
-                io.key_super = (
-                    io.keys_down[self._custom_key(pg.K_LSUPER)] or
-                    io.keys_down[self._custom_key(pg.K_LSUPER)]
-                )
+                    io.key_ctrl = (
+                        io.keys_down[self._custom_key(pg.K_LCTRL)] or
+                        io.keys_down[self._custom_key(pg.K_RCTRL)]
+                    )
+                    io.key_alt = (
+                        io.keys_down[self._custom_key(pg.K_LALT)] or
+                        io.keys_down[self._custom_key(pg.K_RALT)]
+                    )
+                    io.key_shift = (
+                        io.keys_down[self._custom_key(pg.K_LSHIFT)] or
+                        io.keys_down[self._custom_key(pg.K_RSHIFT)]
+                    )
+                    io.key_super = (
+                        io.keys_down[self._custom_key(pg.K_LSUPER)] or
+                        io.keys_down[self._custom_key(pg.K_LSUPER)]
+                    )
             case pg.VIDEORESIZE:
                 surface = pg.display.get_surface()
                 # note: pg does not modify existing surface upon resize,
@@ -273,10 +273,10 @@ class PygameRenderer(ModernGLRenderer):
             case _:
                 return False
         return True
-    
+
     def process_inputs(self):
         io = imgui.get_io()
-        
+
         current_time = pg.time.get_ticks() / 1000.0
 
         if self._gui_time:
@@ -285,7 +285,7 @@ class PygameRenderer(ModernGLRenderer):
             io.delta_time = 1. / 60.
         if io.delta_time <= 0.0:
             io.delta_time = 1./ 1000.
-        self._gui_time = current_time
+            self._gui_time = current_time
 
 class Window:
     def __init__(self, width: int, height: int, title: str, flags: int):
@@ -300,19 +300,19 @@ class Window:
         self._ctx = mgl.get_context()
         imgui.create_context()
         self.imgui_ctx = PygameRenderer(self.ctx)
-    
+
     @property
     def ctx(self):
         return self._ctx
-    
+
     @property
     def size(self) -> Tuple[int, int]:
         return self._width, self._height
-    
+
     @size.setter
     def size(self, width, height):
         self.resize(width, height)
-    
+
     @property
     def open(self) -> bool:
         return self._open
@@ -321,19 +321,19 @@ class Window:
     def title(self):
         return self._title
 
-    @title.setter    
+    @title.setter
     def title(self, title: str):
         self._title = title
         pg.display.set_caption(title)
-    
+
     @property
     def flags(self):
         return self._flags
-    
+
     @flags.setter
     def flags(self, new_flags):
         self.resize(self._width, self._height, flags=new_flags)
-    
+
     def resize(self, width: int, height: int, flags=None):
         if self._width != width:
             self._width = width
@@ -343,19 +343,19 @@ class Window:
             self._projection = None
         if flags is None:
             flags = self._flags
-        self._flags = flags
-        pg.display.set_mode((width, height), flags=flags)
+            self._flags = flags
+            pg.display.set_mode((width, height), flags=flags)
 
     @property
     def projection(self):
         return self._projection
-    
+
     @projection.getter
     def projection(self):
         if not self._projection:
             self._projection = glm.ortho(0, self._width, self._height, 0, -1, 1)
         return self._projection
-    
+
     @property
     def poll(self):
         for event in pg.event.get():
@@ -365,18 +365,18 @@ class Window:
                 if event.type == pg.VIDEORESIZE:
                     self._width = event.w
                     self._height = event.h
-                used = self.imgui_ctx.process_event(event)
+                    used = self.imgui_ctx.process_event(event)
                 if not used or not imgui.is_window_hovered(imgui.HOVERED_ANY_WINDOW):
                     yield event
-        self.imgui_ctx.process_inputs()
-    
+                    self.imgui_ctx.process_inputs()
+
     @property
     def clear_color(self):
         return self._clear_color
-    
+
     def set_clear_color(self, r, g, b):
         self._clear_color = (r, g, b)
-    
+
     def loop(self, frame_limit=None):
         prev_time = time.perf_counter()
         current_time = prev_time
@@ -395,7 +395,7 @@ class Window:
                     count = 0
                 while time.perf_counter() < current_time + step:
                     pass
-            
+
             self._ctx.clear(self._clear_color[0], self._clear_color[1], self.clear_color[2])
             imgui.new_frame()
             yield dt
@@ -404,11 +404,13 @@ class Window:
             self.imgui_ctx.render(imgui.get_draw_data())
             pg.display.flip()
 
+    def quit(self):
+        self._open = False
+
 @contextmanager
-def window(width: int = 800,
-           height: int = 600,
-           title: str = "strike",
-           flags: int = pg.OPENGL | pg.DOUBLEBUF,
+def window(size: Tuple[int, int] = None,
+           title: str = "spritekit",
+           flags: int = pg.OPENGL | pg.DOUBLEBUF | pg.NOFRAME,
            gl_version: Tuple[int, int] = (3, 3)):
     pg.init()
     pg.display.gl_set_attribute(pg.GL_CONTEXT_MAJOR_VERSION, gl_version[0])
@@ -418,6 +420,9 @@ def window(width: int = 800,
     pg.display.gl_set_attribute(pg.GL_DEPTH_SIZE, 24)
     pg.display.gl_set_attribute(pg.GL_STENCIL_SIZE, 8)
     pg.display.set_caption(title)
-    pg.display.set_mode((width, height), flags=flags, vsync=True)
-    yield Window(width, height, title, flags)
-    pg.quit()
+    if not size:
+        info = pg.display.Info()
+        size = (info.current_w, info.current_h)
+        pg.display.set_mode(size, flags=flags, vsync=True)
+        yield Window(size[0], size[1], title, flags)
+        pg.quit()
