@@ -1,10 +1,8 @@
-from PIL import Image
 import moderngl as mgl
-from os.path import exists, isfile
 from .program import *
 from .buffer import *
+from .texture import *
 from dataclasses import dataclass
-from typing import Optional
 import glm
 
 class SpriteProgram(Program):
@@ -46,107 +44,56 @@ class SpriteVertex(Vertex):
     texcoord: glm.vec2
     color: glm.vec4
 
-def generate_quad(self, position: glm.vec2, rotation: Optional[float] = 0, size: Optional[glm.vec2] = None, clip: Optional[glm.vec4] = None, color=glm.vec4(1, 1, 1, 1)):
-    min_x = position.x
-    min_y = position.y
-    img_sz = glm.vec2(self.texture.width, self.texture.height)
-    sz = size if size is not None else img_sz if clip is None else clip.zw
-    max_x = position.x + sz.x
-    max_y = position.y + sz.y
-    center = glm.vec2((min_x + max_x) / 2,
-                      (min_y + max_y) / 2)
-    corners = [glm.vec2(min_x - center.x, min_y - center.y),
-               glm.vec2(max_x - center.x, min_y - center.y),
-               glm.vec2(max_x - center.x, max_y - center.y),
-               glm.vec2(min_x - center.x, max_y - center.y)]
-    if rotation != 0:
-        ct = math.cos(rotation)
-        st = math.sin(rotation)
-        for i in range(len(corners)):
-            x = corners[i].x
-            y = corners[i].y
-            corners[i].x = x * ct - y * st
-            corners[i].y = x * st + y * ct
-    for i in range(len(corners)):
-        corners[i].x += center.x
-        corners[i].y += center.y
-    if clip is None:
-        texcoords = [glm.vec2(0.0, 0.0),
-                     glm.vec2(1.0, 0.0),
-                     glm.vec2(1.0, 1.0),
-                     glm.vec2(0.0, 1.0)]
-    else:
-        normalized_pos = glm.vec2(clip.x, clip.y) / img_sz
-        normalized_size = glm.vec2(clip.z, clip.w) / img_sz
-        texcoords = [normalized_pos,
-                     normalized_pos + glm.vec2(normalized_size.x, 0),
-                     normalized_pos + normalized_size,
-                     normalized_pos + glm.vec2(0, normalized_size.y)]
-        vcol = color or self.color
-    return [SpriteVertex(position=corners[i], texcoord=texcoords[i], color=vcol) for i in [0, 1, 2, 2, 3, 0]]
-
-class Sprite(Disposable):
-    def __init__(self, ctx, path: str = None, image: Image = None):
-        self.ctx = ctx
-        self.texture = None
-        self.sampler = None
-        self._image = None
-        self._width = 0
-        self._height = 0
-        if image is not None:
-            self.image = image
-        if path is not None:
-            self.load(path)
+class BaseNode:
+    def __init__(self,
+                 position: glm.vec2 = glm.vec2(0, 0),
+                 z: float = 0,
+                 rotation: float = 0,
+                 scale: glm.vec2 = glm.vec2(1, 1)):
+        self._position = position
+        self.z = z
+        self._rotation = rotation
+        self._scale = scale
+        self.update()
 
     @property
-    def valid(self):
-        return self.sampler is not None and self.texture is not None
+    def position(self):
+        return self._position
+
+    @position.setter
+    def position(self, other: glm.vec2):
+        self._position = other
+        self.update()
 
     @property
-    def size(self):
-        return self._width, self._height
+    def rotation(self):
+        return self._rotation
+
+    @rotation.setter
+    def rotation(self, other: float):
+        self._rotation = other
+        self.update()
 
     @property
-    def width(self):
-        return self._width
+    def scale(self):
+        return self._scale
+
+    @scale.setter
+    def scale(self, other: glm.vec2):
+        self._scale = other
+        self.update()
 
     @property
-    def height(self):
-        return self._height
+    def matrix(self):
+        return self._matrix
 
-    @property
-    def image(self):
-        return self._image
+    def update(self):
+        self._matrix = glm.scale(glm.rotate(glm.translate(glm.mat4(1.0), glm.vec3(self.position, 0)), glm.radians(self.rotation), glm.vec3(0, 0, 1)), glm.vec3(self.scale, 1.0))
 
-    @image.setter
-    def image(self, new_image: Image):
-        self._image = new_image
-        self._width = self.image.width
-        self._height = self.image.height
-        self.compile()
+    def __str__(self):
+        return f"(BaseNode position:({self.position.x}, {self.position.y}), z-index:{self.z}, rotation:{self.rotation}, scale:({self.scale.x}, {self.scale.y}))"
 
-    def load(self, path, store_original=True):
-        if not exists(path) or not isfile(path):
-            raise FileNotFoundError(path)
-        self.image = Image.open(path).convert('RGBA')
-        self.compile()
-
-    def compile(self):
-        if self.valid:
-            self.texture.release()
-            self.sampler.release()
-            self.texture = self.ctx.texture(self.image.size, 4, self.image.tobytes())
-            self.sampler = self.ctx.sampler(texture=self.texture)
-            self.sampler.filter = (mgl.NEAREST, mgl.NEAREST)
-
-    def use(self):
-        if self.valid:
-            self.sampler.use()
-
-    def release(self):
-        if self.texture is not None:
-            self.texture.release()
-            self.texture = None
-        if self.sampler is not None:
-            self.sampler.release()
-            self.texture = None
+class Sprite(BaseNode):
+    def __init__(self, texture: Texture, **kwargs):
+        super().__init__(**kwargs)
+        self.texture = texture
