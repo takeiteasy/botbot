@@ -45,7 +45,10 @@ class SpriteVertex(Vertex):
     texcoord: glm.vec2
     color: glm.vec4
 
-class Sprite(BaseNode):
+class Sprite(Node):
     def __init__(self, texture: Texture, **kwargs):
         super().__init__(**kwargs)
         self.texture = texture
+
+    def draw(self):
+        pass

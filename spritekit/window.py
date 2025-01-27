@@ -236,7 +236,7 @@ class PygameRenderer(ModernGLRenderer):
                     code = ord(char)
                     if 0 < code < 0x10000:
                         io.add_input_character(code)
-                        io.keys_down[self._custom_key(e.key)] = True
+                io.keys_down[self._custom_key(e.key)] = True
             case pg.KEYDOWN | pg.KEYUP:
                 if e.type == pg.KEYUP:
                     io.keys_down[self._custom_key(e.key)] = False
@@ -285,7 +285,7 @@ class PygameRenderer(ModernGLRenderer):
             io.delta_time = 1. / 60.
         if io.delta_time <= 0.0:
             io.delta_time = 1./ 1000.
-            self._gui_time = current_time
+        self._gui_time = current_time
 
 class Window:
     def __init__(self, width: int, height: int, title: str, flags: int):
@@ -343,8 +343,8 @@ class Window:
             self._projection = None
         if flags is None:
             flags = self._flags
-            self._flags = flags
-            pg.display.set_mode((width, height), flags=flags)
+        self._flags = flags
+        pg.display.set_mode((width, height), flags=flags)
 
     @property
     def projection(self):
@@ -369,7 +369,7 @@ class Window:
                     used = self.imgui_ctx.process_event(event)
                 if not used or not imgui.is_window_hovered(imgui.HOVERED_ANY_WINDOW):
                     yield event
-                    self.imgui_ctx.process_inputs()
+        self.imgui_ctx.process_inputs()
 
     @property
     def clear_color(self):
@@ -424,6 +424,6 @@ def window(size: Tuple[int, int] = None,
     if not size:
         info = pg.display.Info()
         size = (info.current_w, info.current_h)
-        pg.display.set_mode(size, flags=flags, vsync=True)
-        yield Window(size[0], size[1], title, flags)
-        pg.quit()
+    pg.display.set_mode(size, flags=flags, vsync=True)
+    yield Window(size[0], size[1], title, flags)
+    pg.quit()

@@ -1,16 +1,26 @@
 import glm
 
 class BaseNode:
+    pass
+
+class Node:
     def __init__(self,
+                 name: str = "",
                  position: glm.vec2 = glm.vec2(0, 0),
                  z: float = 0,
                  rotation: float = 0,
                  scale: glm.vec2 = glm.vec2(1, 1)):
+        self._name = name
         self._position = position
         self.z = z
         self._rotation = rotation
         self._scale = scale
         self.update()
+        self.children = []
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def position(self):
@@ -47,4 +57,24 @@ class BaseNode:
         self._matrix = glm.scale(glm.rotate(glm.translate(glm.mat4(1.0), glm.vec3(self.position, 0)), glm.radians(self.rotation), glm.vec3(0, 0, 1)), glm.vec3(self.scale, 1.0))
 
     def __str__(self):
-        return f"(BaseNode position:({self.position.x}, {self.position.y}), z-index:{self.z}, rotation:{self.rotation}, scale:({self.scale.x}, {self.scale.y}))"
+        return f"(Node name:\"{self.name}\" position:({self.position.x}, {self.position.y}), z-index:{self.z}, rotation:{self.rotation}, scale:({self.scale.x}, {self.scale.y}))"
+
+    def __eq__(self, other: BaseNode):
+        return self._name == other.name
+
+    def add_child(self, node: BaseNode):
+        self.children.append(node)
+
+    def add_children(self, nodes: [BaseNode]):
+        self.children.extend(nodes)
+
+    def get_children(self, name: str = ""):
+        return [x for x in self.children if x.name == name]
+
+    def rem_children(self, name: str = ""):
+        self.children = [x for x in self.children if x.name != name]
+
+    def draw(self):
+        print(f"Drawing: {self}")
+        for child in children:
+            child.draw()
