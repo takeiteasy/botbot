@@ -4,6 +4,7 @@ from typing import Tuple
 from contextlib import contextmanager
 import moderngl as mgl
 from imgui.integrations.base import BaseOpenGLRenderer
+from typing import Optional
 import imgui
 import time
 import ctypes
@@ -306,7 +307,7 @@ class Window:
         return self._ctx
 
     @property
-    def size(self) -> Tuple[int, int]:
+    def size(self):
         return self._width, self._height
 
     @size.setter
@@ -314,7 +315,7 @@ class Window:
         self.resize(width, height)
 
     @property
-    def open(self) -> bool:
+    def open(self):
         return self._open
 
     @property
@@ -334,7 +335,7 @@ class Window:
     def flags(self, new_flags):
         self.resize(self._width, self._height, flags=new_flags)
 
-    def resize(self, width: int, height: int, flags=None):
+    def resize(self, width: int, height: int, flags: Optional[int] = None):
         if self._width != width:
             self._width = width
             self._projection = None
@@ -378,7 +379,7 @@ class Window:
     def set_clear_color(self, r, g, b):
         self._clear_color = (r, g, b)
 
-    def loop(self, frame_limit=None):
+    def loop(self, frame_limit: Optional[int] = None):
         prev_time = time.perf_counter()
         current_time = prev_time
         step = 0 if frame_limit is None else 1.0 / frame_limit
@@ -409,10 +410,10 @@ class Window:
         self._open = False
 
 @contextmanager
-def window(size: Tuple[int, int] = None,
-           title: str = "spritekit",
-           flags: int = pg.OPENGL | pg.DOUBLEBUF | pg.NOFRAME,
-           gl_version: Tuple[int, int] = (3, 3)):
+def window(size: Optional[Tuple[int, int]] = None,
+           title: Optional[str] = "spritekit",
+           flags: Optional[int] = pg.OPENGL | pg.DOUBLEBUF | pg.NOFRAME,
+           gl_version: Optional[Tuple[int, int]] = (3, 3)):
     pg.init()
     pg.display.gl_set_attribute(pg.GL_CONTEXT_MAJOR_VERSION, gl_version[0])
     pg.display.gl_set_attribute(pg.GL_CONTEXT_MINOR_VERSION, gl_version[1])

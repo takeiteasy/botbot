@@ -1,12 +1,13 @@
 import pygame as pg
+import moderngl as mgl
 from .base import *
-from .stackable import *
+from .parent import *
 from .sprite import *
 
-class Scene(Stackable):
-    def __init__(self, ctx):
+class Scene(Parent):
+    def __init__(self):
         super().__init__()
-        self.ctx = ctx
+        self.ctx = mgl.get_context()
         info = pg.display.Info()
         self._width = info.current_w
         self._height = info.current_h

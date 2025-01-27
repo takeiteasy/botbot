@@ -1,6 +1,7 @@
 import moderngl as mgl
 import numpy as np
 from .disposable import Disposable
+from typing import Optional
 
 class Vertex:
     @property
@@ -8,7 +9,7 @@ class Vertex:
         return np.array([vvv for vv in [v.to_list() for v in list(vars(self).values())] for vvv in vv])
 
 class Buffer(Disposable):
-    def __init__(self, ctx: mgl.Context, layout: str = ""):
+    def __init__(self, ctx: mgl.Context, layout: Optional[str] = ""):
         self.ctx = ctx
         self.buffer = None
         self.vbo = None

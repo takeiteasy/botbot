@@ -1,6 +1,7 @@
 from .base import *
+from typing import Optional
 
-class Stackable:
+class Parent:
     def __init__(self):
         self.children = []
 
@@ -10,10 +11,10 @@ class Stackable:
     def add_children(self, nodes: [BaseNode]):
         self.children.extend(nodes)
 
-    def get_children(self, name: str = ""):
+    def get_children(self, name: Optional[str] = ""):
         return [x for x in self.children if x.name == name]
 
-    def rem_children(self, name: str = ""):
+    def rem_children(self, name: Optional[str] = ""):
         self.children = [x for x in self.children if x.name != name]
 
     def clear_children(self):

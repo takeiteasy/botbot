@@ -5,6 +5,7 @@ from .texture import *
 from .base import *
 from .node import *
 from dataclasses import dataclass
+from typing import Union, Optional
 import glm
 
 class SpriteProgram(Program):
@@ -46,7 +47,20 @@ class SpriteVertex(Vertex):
     texcoord: glm.vec2
     color: glm.vec4
 
-class Sprite(Node):
-    def __init__(self, texture: Texture, **kwargs):
+class Sprite(Node, Disposable):
+    def __init__(self, texture: Union[str, Texture], owned: Optional[bool] = False, **kwargs):
         super().__init__(**kwargs)
+        self.owned = owned
+        match texture:
+            case str():
+                self.texture = Texture(path="test.png")
+                self.owned = True
+            case Texture():
+                self.texture = texture
+            case _:
+                self.texture = None
         self.texture = texture
+
+    def release(self):
+        if self.texture.valid and self.owned:
+            del self.texture

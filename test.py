@@ -4,8 +4,16 @@ import glm
 
 class TestScene(sk.Scene):
     def enter(self):
-        self.test = sk.Texture(self.ctx, path="test.png")
-        self.add_child(sk.Sprite(self.test, name="test"))
+        self.test = sk.Texture(image="test.png")
+        self.node = sk.Sprite(self.test, name="test")
+        a = sk.Sprite(self.test, name="a")
+        a.add_children([sk.Sprite(self.test, name="a"),
+                        sk.Sprite(self.test, name="b"),
+                        sk.Sprite(self.test, name="c")])
+        self.node.add_children([a,
+                                sk.Sprite(self.test, name="b"),
+                                sk.Sprite(self.test, name="c")])
+        self.add_child(self.node)
 
     def event(self, e):
         pass
@@ -14,7 +22,7 @@ class TestScene(sk.Scene):
         pass
 
 with sk.window() as window:
-    scene = TestScene(window.ctx)
+    scene = TestScene()
     scene.enter()
     for delta in window.loop():
         for event in window.poll:

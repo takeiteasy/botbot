@@ -2,24 +2,20 @@ from PIL import Image
 import moderngl as mgl
 from os.path import exists, isfile
 from .disposable import Disposable
+from typing import Union, Optional
 
 class Texture(Disposable):
-    def __init__(self, ctx, path: str = None, image: Image = None):
-        self.ctx = ctx
+    def __init__(self, image: Union[str, Image]):
         self.texture = None
         self.sampler = None
         self._image = None
         self._width = 0
         self._height = 0
-        self._image = None
-        if path is not None:
-            try:
-                self.load(path)
-            except FileNotFoundError as e:
-                if not image:
-                    raise e
-        if not self._image and image:
-            self.copy(image)
+        match image:
+            case str():
+                self.load(image)
+            case Image():
+                self.copy(image)
 
     @property
     def valid(self):
@@ -51,7 +47,7 @@ class Texture(Disposable):
     def image(self, new_image: Image):
         self.copy(new_image)
 
-    def load(self, path, store_original=True):
+    def load(self, path):
         if not exists(path) or not isfile(path):
             raise FileNotFoundError(path)
         self.image = Image.open(path).convert('RGBA')
@@ -60,11 +56,12 @@ class Texture(Disposable):
     def compile(self):
         if self.valid:
             self.release()
-        self.texture = self.ctx.texture(self.image.size, 4, self.image.tobytes())
-        self.sampler = self.ctx.sampler(texture=self.texture)
+        ctx = mgl.get_context()
+        self.texture = ctx.texture(self.image.size, 4, self.image.tobytes())
+        self.sampler = ctx.sampler(texture=self.texture)
         self.sampler.filter = (mgl.NEAREST, mgl.NEAREST)
 
-    def use(self, location=None, sampler_location=0, texture_location=0):
+    def use(self, location: Optional[int] = None, sampler_location: Optional[int] = 0, texture_location: Optional[int] = 0):
         if self.valid:
             self.sampler.use(location=location if location else sampler_location)
             self.texture.use(location=location if location else texture_location)

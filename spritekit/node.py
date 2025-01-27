@@ -1,14 +1,15 @@
 from .base import *
-from .stackable import *
+from .parent import *
+from typing import Optional
 import glm
 
-class Node(BaseNode, Stackable):
+class Node(BaseNode, Parent):
     def __init__(self,
-                 name: str = "",
-                 position: glm.vec2 = glm.vec2(0, 0),
-                 z: float = 0,
-                 rotation: float = 0,
-                 scale: glm.vec2 = glm.vec2(1, 1)):
+                 name: Optional[str] = "",
+                 position: Optional[glm.vec2] = glm.vec2(0, 0),
+                 z: Optional[float] = 0,
+                 rotation: Optional[float] = 0,
+                 scale: Optional[glm.vec2] = glm.vec2(1, 1)):
         super().__init__()
         self._name = name
         self._position = position
@@ -61,7 +62,9 @@ class Node(BaseNode, Stackable):
     def __eq__(self, other: BaseNode):
         return self._name == other.name
 
-    def draw(self):
-        print(f"Drawing: {self.__str__()}")
+    def draw(self, indent: Optional[int] = 0):
+        if indent:
+            print(" " * (indent * 4) + "⤷ ", end="")
+        print(str(self))
         for child in self.children:
-            child.draw()
+            child.draw(indent=indent+1)

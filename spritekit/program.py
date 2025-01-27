@@ -6,8 +6,7 @@ class Program(Disposable):
     vertex_source = None
     fragment_source = None
 
-    def __init__(self, ctx: mgl.Context):
-        self.ctx = ctx
+    def __init__(self):
         self.vs_uniforms = {}
         self.fs_uniforms = {}
         self.vs_in = {}
@@ -30,7 +29,7 @@ class Program(Disposable):
         self.vs_out = get_values(vertex_info.outputs)
         self.fs_in = get_values(fragment_info.inputs)
         self.fs_out = get_values(fragment_info.outputs)
-        self.program = self.ctx.program(self.vertex_source, self.fragment_source)
+        self.program = mgl.get_context().program(self.vertex_source, self.fragment_source)
 
         @property
         def attr_layout(self):
