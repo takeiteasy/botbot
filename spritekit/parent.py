@@ -9,7 +9,8 @@ class Parent:
         self.children.append(node)
 
     def add_children(self, nodes: [BaseNode]):
-        self.children.extend(nodes)
+        for node in nodes:
+            self.add_child(node)
 
     def get_children(self, name: Optional[str] = ""):
         return [x for x in self.children if x.name == name]

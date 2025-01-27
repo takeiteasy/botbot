@@ -3,6 +3,7 @@ import moderngl as mgl
 from os.path import exists, isfile
 from .disposable import Disposable
 from typing import Union, Optional
+from copy import deepcopy
 
 class Texture(Disposable):
     def __init__(self, image: Union[str, Image]):
@@ -38,7 +39,7 @@ class Texture(Disposable):
         return self._image
 
     def copy(self, new_image: Image):
-        self._image = new_image
+        self._image = deepcopy(new_image)
         self._width = self.image.width
         self._height = self.image.height
         self.compile()

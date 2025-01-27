@@ -9,10 +9,11 @@ class Vertex:
         return np.array([vvv for vv in [v.to_list() for v in list(vars(self).values())] for vvv in vv])
 
 class Buffer(Disposable):
-    def __init__(self, ctx: mgl.Context, layout: Optional[str] = ""):
-        self.ctx = ctx
+    def __init__(self, data: Optional[np.array] = None):
         self.buffer = None
         self.vbo = None
+        if data:
+            self.push(data)
 
     @property
     def empty(self):
@@ -32,7 +33,7 @@ class Buffer(Disposable):
             raise ValueError("Vertex buffer is empty")
         if self.valid:
             self.release()
-            self.vbo = self.ctx.buffer(self.buffer)
+        self.vbo = mgl.get_context().buffer(self.buffer)
 
     def clear(self):
         self.buffer = bytearray()

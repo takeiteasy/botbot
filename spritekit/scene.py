@@ -30,6 +30,10 @@ class Scene(Parent):
     def height(self):
         return self._height
 
+    def add_child(self, node: BaseNode):
+        node.scene = self
+        self.children.append(node)
+
     def enter(self):
         pass
 

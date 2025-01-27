@@ -17,6 +17,8 @@ class Node(BaseNode, Parent):
         self._rotation = rotation
         self._scale = scale
         self.update()
+        self.scene = None
+        self.parent = None
 
     @property
     def name(self):
@@ -61,6 +63,10 @@ class Node(BaseNode, Parent):
 
     def __eq__(self, other: BaseNode):
         return self._name == other.name
+
+    def add_child(self, node: BaseNode):
+        node.parent = self
+        self.child.append(node)
 
     def draw(self, indent: Optional[int] = 0):
         if indent:

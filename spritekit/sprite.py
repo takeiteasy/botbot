@@ -48,19 +48,33 @@ class SpriteVertex(Vertex):
     color: glm.vec4
 
 class Sprite(Node, Disposable):
+    vertices = [
+            SpriteVertex(position=glm.vec2(-0.5,  0.5), texcoord=glm.vec2(0.0, 1.0), color=glm.vec4(1.0, 1.0, 1.0, 1.0)),
+            SpriteVertex(position=glm.vec2( 0.5,  0.5), texcoord=glm.vec2(1.0, 1.0), color=glm.vec4(1.0, 1.0, 1.0, 1.0)),
+            SpriteVertex(position=glm.vec2(-0.5, -0.5), texcoord=glm.vec2(0.0, 0.0), color=glm.vec4(1.0, 1.0, 1.0, 1.0)),
+            SpriteVertex(position=glm.vec2( 0.5, -0.5), texcoord=glm.vec2(1.0, 0.0), color=glm.vec4(1.0, 1.0, 1.0, 1.0))]
+
     def __init__(self, texture: Union[str, Texture], owned: Optional[bool] = False, **kwargs):
         super().__init__(**kwargs)
         self.owned = owned
         match texture:
             case str():
-                self.texture = Texture(path="test.png")
+                self.texture = Texture(image="test.png")
                 self.owned = True
             case Texture():
                 self.texture = texture
             case _:
                 self.texture = None
         self.texture = texture
+        self.buffer = Buffer(Sprite.vertices.data)
+        self.buffer.compile()
+
+    def draw(self):
+        for child in self.children:
+            child.draw()
 
     def release(self):
         if self.texture.valid and self.owned:
             del self.texture
+        if self.buffer:
+            del self.buffer
