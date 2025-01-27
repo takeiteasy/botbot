@@ -1,18 +1,25 @@
 import pygame as pg
+from .base import *
+from .stackable import *
 from .sprite import *
 
-class Scene:
+class Scene(Stackable):
     def __init__(self, ctx):
+        super().__init__()
         self.ctx = ctx
         info = pg.display.Info()
         self._width = info.current_w
         self._height = info.current_h
         self._projection = glm.ortho(0, self._width, self._height, 0, -1, 1)
-        self.children = []
+        self._view = glm.mat4(1)
 
     @property
     def projection(self):
         return self._position
+
+    @property
+    def view(self):
+        return self._view
 
     @property
     def width(self):
@@ -37,15 +44,3 @@ class Scene:
     def draw(self):
         for child in self.children:
             child.draw()
-
-    def add_child(self, node: BaseNode):
-        self.children.append(node)
-
-    def add_children(self, nodes: [BaseNode]):
-        self.children.extend(nodes)
-
-    def get_children(self, name: str = ""):
-        return [x for x in self.children if x.name == name]
-
-    def rem_children(self, name: str = ""):
-        self.children = [x for x in self.children if x.name != name]

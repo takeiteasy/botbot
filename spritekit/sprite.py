@@ -3,6 +3,7 @@ from .program import *
 from .buffer import *
 from .texture import *
 from .base import *
+from .node import *
 from dataclasses import dataclass
 import glm
 
@@ -49,6 +50,3 @@ class Sprite(Node):
     def __init__(self, texture: Texture, **kwargs):
         super().__init__(**kwargs)
         self.texture = texture
-
-    def draw(self):
-        pass

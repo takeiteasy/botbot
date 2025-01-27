@@ -55,8 +55,9 @@ class Program(Disposable):
         return self.program is not None
 
     def release(self):
-        if self.program is not None:
+        if self.valid:
             self.program.release()
+            self.program = None
 
 class Uniforms:
     def __getitem__(self, index):
