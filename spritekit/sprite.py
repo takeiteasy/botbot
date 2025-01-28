@@ -6,6 +6,7 @@ from .base import *
 from .node import *
 from dataclasses import dataclass
 from typing import Union, Optional
+from copy import deepcopy
 import glm
 
 class SpriteProgram(Program):
@@ -48,7 +49,7 @@ class SpriteVertex(Vertex):
     color: glm.vec4
 
 class Sprite(Node, Disposable):
-    vertices = [
+    base_vertices = [
             SpriteVertex(position=glm.vec2(-0.5,  0.5), texcoord=glm.vec2(0.0, 1.0), color=glm.vec4(1.0, 1.0, 1.0, 1.0)),
             SpriteVertex(position=glm.vec2( 0.5,  0.5), texcoord=glm.vec2(1.0, 1.0), color=glm.vec4(1.0, 1.0, 1.0, 1.0)),
             SpriteVertex(position=glm.vec2(-0.5, -0.5), texcoord=glm.vec2(0.0, 0.0), color=glm.vec4(1.0, 1.0, 1.0, 1.0)),
@@ -66,15 +67,19 @@ class Sprite(Node, Disposable):
             case _:
                 self.texture = None
         self.texture = texture
-        self.buffer = Buffer(Sprite.vertices.data)
-        self.buffer.compile()
+        self.vertices = deepcopy(Sprite.base_vertices)
+        self.vbo = Buffer([v.data for v in self.vertices])
+        self.vbo.compile()
 
-    def draw(self):
+    def draw(self, debug: Optional[bool] = False):
+        if debug:
+            Node.draw(self)
+        # TODO: draw sprite here ...
         for child in self.children:
             child.draw()
 
     def release(self):
         if self.texture.valid and self.owned:
             del self.texture
-        if self.buffer:
-            del self.buffer
+        if self.vbo:
+            del self.vbo

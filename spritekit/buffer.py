@@ -1,7 +1,7 @@
 import moderngl as mgl
 import numpy as np
 from .disposable import Disposable
-from typing import Optional
+from typing import Union, Optional, List
 
 class Vertex:
     @property
@@ -9,11 +9,17 @@ class Vertex:
         return np.array([vvv for vv in [v.to_list() for v in list(vars(self).values())] for vvv in vv])
 
 class Buffer(Disposable):
-    def __init__(self, data: Optional[np.array] = None):
+    def __init__(self, data: Optional[Union[np.ndarray, List[np.ndarray]]] = None):
         self.buffer = None
         self.vbo = None
         if data:
-            self.push(data)
+            match data:
+                case np.ndarray():
+                    self.push(data)
+                case list():
+                    self.push(np.concatenate(data))
+                case _:
+                    raise ValueError("Expected numpy.ndarray or List[numpy.ndarray]")
 
     @property
     def empty(self):
@@ -23,10 +29,10 @@ class Buffer(Disposable):
     def valid(self):
         return self.vbo is not None
 
-    def push(self, data: np.array):
+    def push(self, data: np.ndarray):
         if not self.buffer:
             self.buffer = bytearray()
-            self.buffer.extend(data.astype('f4').tobytes())
+        self.buffer.extend(data.astype('f4').tobytes())
 
     def compile(self):
         if self.empty:
@@ -36,7 +42,7 @@ class Buffer(Disposable):
         self.vbo = mgl.get_context().buffer(self.buffer)
 
     def clear(self):
-        self.buffer = bytearray()
+        self.buffer = None
 
     def release(self):
         if self.valid:

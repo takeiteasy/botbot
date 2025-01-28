@@ -47,5 +47,6 @@ class Scene(Parent):
         pass
 
     def draw(self):
+        # TODO: sort children by z-index first ...
         for child in self.children:
             child.draw()

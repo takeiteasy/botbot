@@ -66,7 +66,7 @@ class Node(BaseNode, Parent):
 
     def add_child(self, node: BaseNode):
         node.parent = self
-        self.child.append(node)
+        self.children.append(node)
 
     def draw(self, indent: Optional[int] = 0):
         if indent:

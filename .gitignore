@@ -4,7 +4,7 @@
 .idea/
 .venv/
 __pycachce__/
-casino/__pycachce__/
+**/__pycachce__/
 *.iml
 build/
 *.txt
