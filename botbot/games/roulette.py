@@ -1,4 +1,4 @@
-from .scene import Scene
+from ..scene import Scene
 import pyray as r
 
 class Roulette(Scene):

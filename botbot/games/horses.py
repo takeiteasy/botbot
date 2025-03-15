@@ -1,6 +1,6 @@
-from .scene import Scene
-from .raylib import Texture
-from .actor import Actor, RectangleNode, CircleNode, LabelNode, LineNode, SpriteNode, TimerNode
+from ..scene import Scene
+from ..raylib import Texture
+from ..actor import Actor, RectangleNode, CircleNode, LabelNode, LineNode, SpriteNode, TimerNode
 from slimrr import Vector2
 import pyray as r
 from dataclasses import dataclass

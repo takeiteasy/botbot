@@ -133,8 +133,3 @@ class BotBot(Scene):
 
     async def on_bet(self, data: ChatCommand):
         pass
-
-if __name__ == "__main__":
-    from bot import DefaultBot
-    bot = DefaultBot()
-    asyncio.run(bot.run())

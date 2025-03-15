@@ -1,8 +1,7 @@
 import asyncio
 import pyray as r
 from botbot import BotBot
-from botbot.horses import HorseRaces
-from botbot.roulette import Roulette
+from botbot.games import *
 from botbot.fsm import Transition
 import random
 import sys

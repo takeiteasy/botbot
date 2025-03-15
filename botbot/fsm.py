@@ -20,22 +20,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import transitions
 
-__all__ = ["State", "Transition", "FiniteStateMachine"]
-
-@dataclass
-class State:
-    name: str | Enum
-    on_enter: Optional[Callable[[Any], Any]] = None
-    on_exit: Optional[Callable[[Any], Any]] = None
-    ignore_invalid_triggers: Optional[bool] = False
-    final: Optional[bool] = False
-
-    def explode(self):
-        return self.__dict__.items()
-
-    @property
-    def value(self):
-        return self.name
+__all__ = ["Transition", "FiniteStateMachine"]
 
 @dataclass
 class Transition:
@@ -55,7 +40,7 @@ class Transition:
         return transition_args
 
 class FiniteStateMachine:
-    states: list[str | State] = []
+    states: list[str] = []
     transitions: list[dict | Transition] = []
 
     def __init__(self, **kwargs):
