@@ -2,7 +2,7 @@ import asyncio
 import pyray as r
 from botbot import BotBot
 from botbot.games import *
-from botbot.fsm import Transition
+from botbot.scene import Transition
 import random
 import sys
 

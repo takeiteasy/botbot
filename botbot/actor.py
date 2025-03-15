@@ -26,7 +26,7 @@ from queue import Queue
 
 __all__ = ["LineNode", "RectangleNode", "CircleNode", "TriangleNode", "EllipseNode", "SpriteNode",
            "LabelNode", "MusicNode", "SoundNode", "TimerNode", "ActionNode", "ActionSequence",
-           "WaitAction", "EmitterNode"]
+           "WaitAction", "EmitterNode", "Actor"]
 
 class ActorType:
     pass
@@ -190,7 +190,7 @@ class ActionType:
 
 @dataclass
 class ActionNode(ActionType, TimerNode):
-    easing_fn: Callable[[float, float, float, float], float] = staticmethod(ease_linear_in_out)
+    easing: Callable[[float, float, float, float], float] = staticmethod(ease_linear_in_out)
     actor: Optional[Actor] = None
     field: Optional[str | list[str]] = None
     target: Any = None
@@ -230,8 +230,8 @@ class ActionNode(ActionType, TimerNode):
             raise RuntimeError("Target is not set")
         self.field = self.field if isinstance(self.field, list) else self.field.split(".") if "." in self.field else [self.field]
         self._initial_value()
-        if "easing_fn" in kwargs:
-            self.easing_fn = staticmethod(kwargs.pop("easing_fn"))
+        if "easing" in kwargs:
+            self.easing = staticmethod(kwargs.pop("easing"))
         self._start = None
         self.on_complete = self.remove_me
         self.on_tick = self._step
@@ -254,7 +254,7 @@ class ActionNode(ActionType, TimerNode):
         for i in range(len(self.field)):
             if i == len(self.field) - 1:
                 def fn(x, y, z, w):
-                    return self.easing_fn(x, y, z, w)
+                    return self.easing(x, y, z, w)
                 f = getattr(obj, self.field[i])
                 if isinstance(f, float):
                     setattr(obj, self.field[i], fn(elapsed, self._start, delta, self.duration))
