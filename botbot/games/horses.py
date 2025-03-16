@@ -28,6 +28,12 @@ class HorseOrientation(Enum):
     SOUTH = 2
     NORTH = 3
 
+def screen_size() -> tuple[Vector2, Vector2]:
+    screen = Vector2([r.get_render_width(), r.get_render_height()])
+    if platform.system() == "Darwin":
+        screen = screen / 2
+    return screen, screen / 2.
+
 def _horse_animation(name: str, orientation: HorseOrientation = HorseOrientation.EAST) -> int:
     for i, (n, f, s) in enumerate(_HORSE_ANIMATIONS):
         if n == name:
@@ -83,10 +89,7 @@ def _poisson_disc_sampling(width, height, r, k=30):
 class HorsePen(Actor):
     def __init__(self, number: int, **kwargs):
         super().__init__(**kwargs)
-        screen = Vector2([r.get_render_width(), r.get_render_height()])
-        if platform.system() == "Darwin":
-            screen = screen / 2
-        hscreen = screen / 2.
+        screen, hscreen = screen_size()
         size = 90.
         hsize = size / 2.
         hh = screen.y / _HORSE_COUNT
@@ -111,14 +114,10 @@ class HorsePen(Actor):
 class HorseNode(SpriteNode): 
     def __init__(self, breed: int, number: int, **kwargs):
         self._breed = breed
-        rh = r.get_render_height()
-        rw = r.get_render_width()
-        if platform.system() == "Darwin":
-            rh = rh / 2
-            rw = rw / 2
-        hh = rh / _HORSE_COUNT
-        py = -(rh / 2) + (hh * number + 1) - (_HORSE_SIZE[1] / 4)
-        px = -(rw / 2) - (_HORSE_SIZE[0] / 2)
+        screen, hscreen = screen_size()
+        hh = screen.y / _HORSE_COUNT
+        py = -hscreen.y + (hh * number + 1) - (_HORSE_SIZE[1] / 4)
+        px = -hscreen.x - (_HORSE_SIZE[0] / 2)
         super().__init__(texture=Texture(f"assets/horses/{self._breed}.png"),
                          source=r.Rectangle(0, 0, _HORSE_SIZE[0], _HORSE_SIZE[1]),
                          dst=r.Rectangle(px, py, _HORSE_SIZE[0], _HORSE_SIZE[1]),
@@ -135,7 +134,7 @@ class HorseNode(SpriteNode):
         self._timer = TimerNode(duration=s,
                                 on_complete=self._on_complete,
                                 repeat=True)
-        self._target = (rw / 2.) - _HORSE_SIZE[0]
+        self._target = hscreen.x - _HORSE_SIZE[0]
         self._base_speed = random.uniform(100, 120)
         self._current_speed = self._base_speed
         self._acceleration = 0
@@ -206,10 +205,7 @@ class HorseRaces(Scene):
     background_color = (129, 186, 68, 255)
 
     def enter(self):
-        screen = Vector2([r.get_render_width(), r.get_render_height()])
-        if platform.system() == "Darwin":
-            screen = screen / 2
-        hscreen = screen / 2.
+        screen, hscreen = screen_size()
         points = _poisson_disc_sampling(screen.x, screen.y, 50)
         for p in points:
             self.add_child(GrassNode(Vector2([p[0], p[1]]) - hscreen))
