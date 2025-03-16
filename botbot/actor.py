@@ -375,7 +375,7 @@ class Actor2D(Actor):
     rotation: float = 0.
     scale: float = 1.
     origin: Vector2 = field(default_factory=lambda: Vector2([0.5, 0.5]))
-    color: r.Color = r.RAYWHITE
+    color: r.Color = r.WHITE
 
     def _offset(self):
         return self.position + self.origin * Vector2([-self.width, -self.height])

@@ -4,17 +4,19 @@ from ..actor import *
 from ..easing import * 
 from slimrr import Vector2
 import pyray as r
-from random import random, sample, uniform
 from enum import Enum
 import platform
-from math import sin, pi
+from math import sin
+import numpy as np
+import random
+from typing import Optional
 
 _HORSE_SIZE = (64, 48)
 _HORSE_ANIMATIONS = [
     ("Idle", 3, .075),
     ("Eating", 3, .25),
     ("Walking", 8, .5),
-    ("Galloping", 6, .5),
+    ("Galloping", 6, .075),
     ("Rearing", 8, .5),
     ("Death", 6, .5)
 ]
@@ -31,6 +33,52 @@ def _horse_animation(name: str, orientation: HorseOrientation = HorseOrientation
         if n == name:
             return i * (_HORSE_SIZE[1] * 4) + ((orientation.value + 1) * _HORSE_SIZE[1]), f, s
     raise ValueError(f"Animation `{name}` not found")
+
+def _poisson_disc_sampling(width, height, r, k=30):
+    cell_size = r / sqrt(2)
+    grid_width = int(width / cell_size) + 1
+    grid_height = int(height / cell_size) + 1
+    grid = [None] * (grid_width * grid_height)
+    points = []
+    active = []
+    first_point = (random.uniform(0, width), random.uniform(0, height))
+    points.append(first_point)
+    active.append(first_point)
+    grid_x, grid_y = int(first_point[0] / cell_size), int(first_point[1] / cell_size)
+    grid[grid_y * grid_width + grid_x] = first_point
+    while active:
+        point_index = random.randint(0, len(active) - 1)
+        point = active[point_index]
+        found = False
+        for _ in range(k):
+            angle = random.uniform(0, 2 * np.pi)
+            distance = random.uniform(r, 2 * r)
+            new_point = (
+                point[0] + distance * np.cos(angle),
+                point[1] + distance * np.sin(angle))
+            if not (0 <= new_point[0] < width and 0 <= new_point[1] < height):
+                continue
+            grid_x, grid_y = int(new_point[0] / cell_size), int(new_point[1] / cell_size)
+            valid = True
+            for i in range(max(0, grid_x - 2), min(grid_width, grid_x + 3)):
+                for j in range(max(0, grid_y - 2), min(grid_height, grid_y + 3)):
+                    neighbor = grid[j * grid_width + i]
+                    if neighbor:
+                        distance = sqrt((new_point[0] - neighbor[0])**2 + (new_point[1] - neighbor[1])**2)
+                        if distance < r:
+                            valid = False
+                            break
+                if not valid:
+                    break
+            if valid:
+                points.append(new_point)
+                active.append(new_point)
+                grid[grid_y * grid_width + grid_x] = new_point
+                found = True
+                break
+        if not found:
+            active.pop(point_index)
+    return points
 
 class HorsePen(Actor):
     def __init__(self, number: int, **kwargs):
@@ -88,11 +136,12 @@ class HorseNode(SpriteNode):
                                 on_complete=self._on_complete,
                                 repeat=True)
         self._target = (rw / 2.) - _HORSE_SIZE[0]
-        self._base_speed = uniform(100, 120)
+        self._base_speed = random.uniform(100, 120)
         self._current_speed = self._base_speed
         self._acceleration = 0
         self._time = 0
         self._last_burst = 0
+        self._bursts_remaining = 6
         self.add_child(self._timer)
 
     def _offset(self):
@@ -108,9 +157,11 @@ class HorseNode(SpriteNode):
         super().step(delta)
         self._time += delta
         # Random chance for speed burst
-        if self._time - self._last_burst > 1.0 and random() < 0.02:
-            self._acceleration = uniform(150, 250)
-            self._last_burst = self._time
+        if self._bursts_remaining > 0:
+            if self._time - self._last_burst > 1.0 and random.random() < 0.025:
+                self._acceleration = random.uniform(150, 250)
+                self._last_burst = self._time
+                self._bursts_remaining -= 1
         # Apply acceleration and decay
         if self._acceleration > 0:
             self._acceleration *= 0.95
@@ -125,10 +176,6 @@ class HorseNode(SpriteNode):
             speed_variation + 
             self._acceleration
         )        
-        # Adjust animation speed based on movement speed
-        speed_ratio = self._current_speed / self._base_speed
-        self._animation_speed = self._base_animation_speed / speed_ratio
-        self._timer.duration = self._animation_speed  # Update timer duration
         # Only move if we haven't reached the target
         if self.dst.x < self._target:
             self.dst.x += self._current_speed * delta
@@ -138,12 +185,35 @@ class HorseNode(SpriteNode):
                            [self._frame_current * _HORSE_SIZE[0], self._animation_y, self.source.width, self.source.height],
                            [self.dst.x, self.dst.y, self.dst.width, self.dst.height],
                            [*-self._offset()], self.rotation, self.color)
-    
+
+class GrassNode(SpriteNode):
+    width = 16
+    height = 16
+    rows = 3
+    columns = 3
+
+    def __init__(self, position: Vector2, gtype: Optional[int] = None, **kwargs):
+        if gtype is None:
+            gtype = random.randint(0, self.__class__.columns * self.__class__.rows - 1)
+        row = gtype // self.__class__.columns
+        column = gtype % self.__class__.columns
+        super().__init__(texture=Texture("assets/Grass.png"),
+                         source=r.Rectangle(column * self.__class__.width, row * self.__class__.height, self.__class__.width, self.__class__.height),
+                         dst=r.Rectangle(position.x, position.y, self.__class__.width, self.__class__.height),
+                         **kwargs)
+
 class HorseRaces(Scene):
     background_color = (129, 186, 68, 255)
 
-    def enter(self):  
-        for i, breed in enumerate(sample(list(range(1, _HORSE_COUNT + 1)), _HORSE_COUNT)):
+    def enter(self):
+        screen = Vector2([r.get_render_width(), r.get_render_height()])
+        if platform.system() == "Darwin":
+            screen = screen / 2
+        hscreen = screen / 2.
+        points = _poisson_disc_sampling(screen.x, screen.y, 50)
+        for p in points:
+            self.add_child(GrassNode(Vector2([p[0], p[1]]) - hscreen))
+        for i, breed in enumerate(random.sample(list(range(1, _HORSE_COUNT + 1)), _HORSE_COUNT)):
             self.add_child(HorsePen(i + 1))
             name = f"Horse{i + 1}"
             self.add_child(HorseNode(breed, i, name=name))
