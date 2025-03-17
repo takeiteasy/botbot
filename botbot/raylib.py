@@ -20,7 +20,7 @@ import raylib as rl
 import os
 import pathlib
 
-__all__ = ["Image", "Texture", "Shader", "ShaderFromMemory", "Model", "Wave", "Sound", "Music", "Font", "Keys", "Flags", "Keyboard", "Gamepad", "Mouse", "Color", "Rectangle", "unload_cache"]
+__all__ = ["Image", "Texture", "TextureFromImage", "Shader", "ShaderFromMemory", "Model", "Wave", "Sound", "Music", "Font", "Keys", "Flags", "Keyboard", "Gamepad", "Mouse", "Color", "Rectangle", "unload_cache"]
 
 __SKPATH__ = pathlib.Path(__file__).parent
 __SKDATA__ = "assets"
@@ -103,6 +103,9 @@ def Image(file: str):
 @cache_result
 def Texture(file: str):
     return r.load_texture(find_file(file, __image_extensions, _file_locations('textures')))
+
+def TextureFromImage(image: r.Image):
+    return r.load_texture_from_image(image)
 
 def Shader(vertex_file: str, fragment_file: str):
     return r.load_shader(find_file(vertex_file, __vshader_extensions, _file_locations('shaders')),

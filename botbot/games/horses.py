@@ -1,5 +1,5 @@
 from ..scene import Scene
-from ..raylib import Texture
+from ..raylib import Texture, TextureFromImage
 from ..actor import *
 from ..easing import * 
 from slimrr import Vector2
@@ -28,7 +28,7 @@ class HorseOrientation(Enum):
     SOUTH = 2
     NORTH = 3
 
-def screen_size() -> tuple[Vector2, Vector2]:
+def _screen_size() -> tuple[Vector2, Vector2]:
     screen = Vector2([r.get_render_width(), r.get_render_height()])
     if platform.system() == "Darwin":
         screen = screen / 2
@@ -86,37 +86,12 @@ def _poisson_disc_sampling(width, height, r, k=30):
             active.pop(point_index)
     return points
 
-class HorsePen(Actor):
-    def __init__(self, number: int, **kwargs):
-        super().__init__(**kwargs)
-        screen, hscreen = screen_size()
-        size = 90.
-        hsize = size / 2.
-        hh = screen.y / _HORSE_COUNT
-        center = Vector2([-hscreen.x + hsize,
-                          -hscreen.y + (hh * number + 1) - (_HORSE_SIZE[1] / 4) - hsize])
-        self.add_child(RectangleNode(color=r.RED,
-                                     position=center ,
-                                     width=size,
-                                     height=size))
-        self.add_child(CircleNode(color=r.WHITE,
-                                  position=center,
-                                  radius=hsize - 10))
-        self.add_child(LabelNode(text=f"{number}",
-                                 position=center,
-                                 font_size=72,
-                                 color=r.BLACK))
-        self.add_child(LineNode(color=r.WHITE,
-                                thickness=12.,
-                                position=center + Vector2([-hsize, hsize]),
-                                end=center + Vector2([screen.x, hsize])))
-
 class HorseNode(SpriteNode): 
     def __init__(self, breed: int, number: int, **kwargs):
         self._breed = breed
-        screen, hscreen = screen_size()
-        hh = screen.y / _HORSE_COUNT
-        py = -hscreen.y + (hh * number + 1) - (_HORSE_SIZE[1] / 4)
+        screen, hscreen = _screen_size()
+        hh = (hscreen.y / 2.) / _HORSE_COUNT
+        py = (hscreen.y / 4.) + (hh * number + 1) - (_HORSE_SIZE[1] / 4)
         px = -hscreen.x - (_HORSE_SIZE[0] / 2)
         super().__init__(texture=Texture(f"assets/horses/{self._breed}.png"),
                          source=r.Rectangle(0, 0, _HORSE_SIZE[0], _HORSE_SIZE[1]),
@@ -135,16 +110,20 @@ class HorseNode(SpriteNode):
                                 on_complete=self._on_complete,
                                 repeat=True)
         self._target = hscreen.x - _HORSE_SIZE[0]
+        self._move_target = hscreen.x + _HORSE_SIZE[0]
         self._base_speed = random.uniform(100, 120)
         self._current_speed = self._base_speed
         self._acceleration = 0
         self._time = 0
         self._last_burst = 0
-        self._bursts_remaining = 6
+        self._burst_cooldown = random.uniform(.5, 2.)
+        self._bursts_remaining = 4
+        self._burst_chance = .1
+        self._finished = False
         self.add_child(self._timer)
 
     def _offset(self):
-        return self.position + self.origin * (Vector2(list(_HORSE_SIZE)) / 2.)
+        return self.position + self.origin - (Vector2(list(_HORSE_SIZE)) / 2.)
 
     def _on_complete(self):
         if self._frame_current + 1 < self._frame_max:
@@ -152,31 +131,37 @@ class HorseNode(SpriteNode):
         else:
             self._frame_current = 0
     
+    @property
+    def burst_chance(self):
+        return self._burst_chance
+    
+    @burst_chance.setter
+    def burst_chance(self, value):
+        self._burst_chance = value
+    
     def step(self, delta):
         super().step(delta)
         self._time += delta
-        # Random chance for speed burst
-        if self._bursts_remaining > 0:
-            if self._time - self._last_burst > 1.0 and random.random() < 0.025:
-                self._acceleration = random.uniform(150, 250)
-                self._last_burst = self._time
-                self._bursts_remaining -= 1
-        # Apply acceleration and decay
-        if self._acceleration > 0:
-            self._acceleration *= 0.95
-        # Natural speed variations
-        speed_variation = (
-            sin(self._time * 1.5) * 20 +
-            sin(self._time * 4.0) * 10
-        )
-        # Calculate final speed
-        self._current_speed = (
-            self._base_speed + 
-            speed_variation + 
-            self._acceleration
-        )        
-        # Only move if we haven't reached the target
-        if self.dst.x < self._target:
+        if self._finished:
+            self._current_speed = self._base_speed
+        else:
+            if self._bursts_remaining > 0:
+                if self._time - self._last_burst > self._burst_cooldown and random.random() < self._burst_chance:
+                    self._acceleration = random.uniform(200., 250.)
+                    self._last_burst = self._time
+                    self._bursts_remaining -= 1
+                    self._burst_cooldown = random.uniform(.5, 2.)
+            if self._acceleration > 0:
+                self._acceleration *= 0.95
+            speed_variation = (sin(self._time * 2.0) * 20 +
+                               sin(self._time * 3.0) * 10)
+            self._current_speed = (
+                self._base_speed + 
+                speed_variation + 
+                self._acceleration)
+        if not self._finished and self.dst.x > self._target:
+            self._finished = True
+        if self.dst.x < self._move_target:
             self.dst.x += self._current_speed * delta
 
     def draw(self):
@@ -201,15 +186,64 @@ class GrassNode(SpriteNode):
                          dst=r.Rectangle(position.x, position.y, self.__class__.width, self.__class__.height),
                          **kwargs)
 
+class CheckerboardNode(SpriteNode):
+    def __init__(self, position: Vector2,
+                 size: Vector2,
+                 check_size: Vector2,
+                 color1: tuple[int, int, int, int] = (255, 255, 255, 255),
+                 color2: tuple[int, int, int, int] = (0, 0, 0, 255),
+                 **kwargs):
+        image = r.gen_image_checked(int(size.x), int(size.y), int(check_size.x), int(check_size.y), color1, color2)
+        super().__init__(texture=TextureFromImage(image),
+                         dst=r.Rectangle(position.x, position.y, size.x, size.y),
+                         **kwargs)
+
+class FenceNode(Actor):
+    def __init__(self, height: int, divisions: int, **kwargs):
+        super().__init__(**kwargs)
+        screen, hscreen = _screen_size()
+        self.add_child(LineNode(position=Vector2([-hscreen.x, 0]),
+                                end=Vector2([hscreen.x, 0]),
+                                thickness=3,
+                                color=(0, 0, 0, 255)))
+        self.add_child(LineNode(position=Vector2([-hscreen.x, -height]),
+                                end=Vector2([hscreen.x, -height]),
+                                thickness=3,
+                                color=(0, 0, 0, 255)))
+        for i in range(int(hscreen.x) // divisions):
+            offset = (i * (divisions * 2)) + (divisions * 2)
+            self.add_child(LineNode(position=Vector2([-hscreen.x + offset, 0]),
+                                    end=Vector2([-hscreen.x + offset, -height]),
+                                    thickness=3,
+                                    color=(0, 0, 0, 255)))
+        
+
 class HorseRaces(Scene):
     background_color = (129, 186, 68, 255)
 
     def enter(self):
-        screen, hscreen = screen_size()
+        screen, hscreen = _screen_size()
         points = _poisson_disc_sampling(screen.x, screen.y, 50)
         for p in points:
             self.add_child(GrassNode(Vector2([p[0], p[1]]) - hscreen))
+        self._target = hscreen.x - _HORSE_SIZE[0]
+        self.add_child(CheckerboardNode(position=Vector2([self._target + (_HORSE_SIZE[0] / 2.),
+                                                          hscreen.y / 2.]),
+                                        size=Vector2([_HORSE_SIZE[0], hscreen.y]),
+                                        check_size=Vector2([16, 16]),
+                                        color1=(255, 255, 255, 255),
+                                        color2=(0, 0, 0, 255)))
+        self.add_child(LineNode(position=Vector2([self._target, 0]),
+                                end=Vector2([self._target, screen.y]),
+                                thickness=3,
+                                color=(255, 0, 0, 255)))   
+        self.add_child(FenceNode(height=20, divisions=20))
         for i, breed in enumerate(random.sample(list(range(1, _HORSE_COUNT + 1)), _HORSE_COUNT)):
-            self.add_child(HorsePen(i + 1))
             name = f"Horse{i + 1}"
             self.add_child(HorseNode(breed, i, name=name))
+    
+    def step(self, delta):
+        horses = [self.find_child(name=f"Horse{i + 1}") for i in range(_HORSE_COUNT)]
+        for i, horse in enumerate(sorted(horses, key=lambda x: x.dst.x)):
+            horse.burst_chance = .1 + (i * .1)
+        super().step(delta)
