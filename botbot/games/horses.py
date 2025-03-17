@@ -34,7 +34,7 @@ def _screen_size() -> tuple[Vector2, Vector2]:
         screen = screen / 2
     return screen, screen / 2.
 
-def _horse_animation(name: str, orientation: HorseOrientation = HorseOrientation.EAST) -> int:
+def _horse_animation(name: str, orientation: HorseOrientation = HorseOrientation.EAST) -> tuple[int, float, float]:
     for i, (n, f, s) in enumerate(_HORSE_ANIMATIONS):
         if n == name:
             return i * (_HORSE_SIZE[1] * 4) + ((orientation.value + 1) * _HORSE_SIZE[1]), f, s
@@ -87,8 +87,9 @@ def _poisson_disc_sampling(width, height, r, k=30):
     return points
 
 class HorseNode(SpriteNode): 
-    def __init__(self, breed: int, number: int, **kwargs):
+    def __init__(self, breed: int, number: int, race_name: str, **kwargs):
         self._breed = breed
+        self._race_name = race_name
         screen, hscreen = _screen_size()
         hh = (hscreen.y / 2.) / _HORSE_COUNT
         py = (hscreen.y / 4.) + (hh * number + 1) - (_HORSE_SIZE[1] / 4)
@@ -211,15 +212,18 @@ class FenceNode(Actor):
                                 thickness=3,
                                 color=(0, 0, 0, 255)))
         for i in range(int(hscreen.x) // divisions):
-            offset = (i * (divisions * 2)) + (divisions * 2)
+            offset = (i + 1) * (divisions * 2)
             self.add_child(LineNode(position=Vector2([-hscreen.x + offset, 0]),
                                     end=Vector2([-hscreen.x + offset, -height]),
                                     thickness=3,
                                     color=(0, 0, 0, 255)))
-        
 
 class HorseRaces(Scene):
     background_color = (129, 186, 68, 255)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._horse_names = open("assets/names.txt", "r").read().split("\n")
 
     def enter(self):
         screen, hscreen = _screen_size()
@@ -238,12 +242,11 @@ class HorseRaces(Scene):
                                 thickness=3,
                                 color=(255, 0, 0, 255)))   
         self.add_child(FenceNode(height=20, divisions=20))
+        names = random.sample(self._horse_names, _HORSE_COUNT)
         for i, breed in enumerate(random.sample(list(range(1, _HORSE_COUNT + 1)), _HORSE_COUNT)):
-            name = f"Horse{i + 1}"
-            self.add_child(HorseNode(breed, i, name=name))
+            self.add_child(HorseNode(breed, i, race_name=names[i], name=f"Horse{i + 1}"))
     
     def step(self, delta):
-        horses = [self.find_child(name=f"Horse{i + 1}") for i in range(_HORSE_COUNT)]
-        for i, horse in enumerate(sorted(horses, key=lambda x: x.dst.x)):
+        for i, horse in enumerate(sorted([self.find_child(name=f"Horse{i + 1}") for i in range(_HORSE_COUNT)], key=lambda x: x.dst.x)):
             horse.burst_chance = .1 + (i * .1)
         super().step(delta)

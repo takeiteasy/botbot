@@ -646,10 +646,10 @@ class MusicNode(AudioActor):
         else:
             self.play()
 
-    def step(self, _: float):
-        if not self.playing:
-            return
-        r.update_music_stream(self.audio)
-        if not self.playing:
-            self.position = 0
-            self.play()
+    def step(self, delta: float):
+        if self.playing:
+            r.update_music_stream(self.audio)
+            if not self.playing and self.loop:
+                self.position = 0
+                self.play()
+        super().step(delta)

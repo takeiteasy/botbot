@@ -11,8 +11,10 @@ from .scene import Scene, Transition
 import random
 import sys
 
+__ALL__ = ["DefaultBot", "BotBot", "HorseRaces", "Roulette"]
+
 _DATABASE = Database()
-_CACHE = Redis("localhost", 6379, 0)
+_CACHE = None
 _DEFAULT_BALANCE = 1000
 
 class Player(_DATABASE.Entity):
@@ -66,8 +68,10 @@ def _clear_stakes():
     _CACHE.delete("stakes")
 
 def _connect_database():
+    global _DATABASE, _CACHE
     _DATABASE.bind(provider="sqlite", filename="botbot.db", create_db=True)
     _DATABASE.generate_mapping(create_tables=True)
+    _CACHE = Redis("localhost", 6379, 0)
 
 def _read_file(s: str | None) -> str:
     if s is None:
@@ -97,6 +101,7 @@ class BotBot(Scene):
         # await self.twitch.close()
 
     async def run(self):
+        # _connect_database()
         # user_scopes = [AuthScope.CHAT_READ, AuthScope.CHAT_EDIT]
         # self.twitch = await Twitch(client_id=self.app_id, client_secret=self.app_secret)
         # await self.twitch.set_user_authentication(self.app_access, user_scopes, self.app_secret)
