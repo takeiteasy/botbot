@@ -1,14 +1,15 @@
 import asyncio
+from .games import *
 from typing import Optional, Union
-
 from twitchAPI.twitch import Twitch
 from twitchAPI.oauth import UserAuthenticator
 from twitchAPI.chat import Chat, EventData, ChatMessage, ChatCommand, ChatSub, AuthScope, ChatEvent
 from redis import Redis
-from queue import Queue
 import pyray as r
 from pony.orm import *
-from .scene import Scene
+from .scene import Scene, Transition
+import random
+import sys
 
 _DATABASE = Database()
 _CACHE = Redis("localhost", 6379, 0)
@@ -80,6 +81,8 @@ def _read_file(s: str | None) -> str:
 class BotBot(Scene):
     def __init__(self, app_id: Union[str, None] = None, app_secret: Union[str, None] = None, app_refresh: Union[str, None] = None, app_access: Union[str, None] = None, **kwargs):
         super().__init__(**kwargs)
+        self._scene = None
+        self._last_scene = None
         self.chat = None
         self.twitch = None
         self.app_id = _read_file(app_id)
@@ -133,3 +136,44 @@ class BotBot(Scene):
 
     async def on_bet(self, data: ChatCommand):
         pass
+
+    def enter(self):
+        self.next()
+
+    def setup_next(self):
+        if self._scene is not None:
+            self._last_scene = self._scene.__class__.__name__
+        available_states = [s for s in self.states[:-1] if s != self._last_scene]
+        next_state = random.choice(available_states)
+        if self._scene is not None:
+            self._scene.exit()
+        for module in sys.modules.values():
+            if hasattr(module, next_state):
+                SceneClass = getattr(module, next_state)
+                break
+        else:
+            raise ValueError(f"Scene `{next_state}` not found")
+        self._scene = SceneClass()
+        self._scene.clear_color = getattr(SceneClass, 'background_color', r.RAYWHITE)
+        self._scene.enter()
+        self.fsm.set_state(next_state)
+
+    def step(self, delta):
+        if self._scene is not None:
+            self._scene.step(delta)
+        if r.is_key_pressed(r.KEY_SPACE):
+            self.next()
+
+    def draw(self):
+        if self._scene is not None:
+            self._scene.draw()
+
+class DefaultBot(BotBot):
+    config = {
+        "width": 1024,
+        "height": 768,
+        "title": "BotBot",
+        "fps": 60
+    }
+    states = ["HorseRaces", "Roulette", "NextGame"]
+    transitions = [Transition(trigger="next", source="*", dest="NextGame", after="setup_next")]
