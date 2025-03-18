@@ -8,6 +8,7 @@ from redis import Redis
 import pyray as r
 from pony.orm import *
 from .scene import Scene, Transition
+from .raylib import unload_cache
 import random
 import sys
 
@@ -147,6 +148,7 @@ class BotBot(Scene):
 
     def setup_next(self):
         if self._scene is not None:
+            unload_cache()
             self._last_scene = self._scene.__class__.__name__
         available_states = [s for s in self.states[:-1] if s != self._last_scene]
         next_state = random.choice(available_states)

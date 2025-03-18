@@ -355,7 +355,7 @@ class ScreenNode(Actor):
         label_line_height = 8
         for i, name in enumerate(horse_names):
             rnd = random.randint(1, 100)
-            label = LabelNode(text=f"{name}: #{i + 1} ({rnd}/{rnd*2})",
+            label = LabelNode(text=f"{name}: #{i} ({rnd}/{rnd*2})",
                               font=r.get_font_default(),
                               font_size=20,
                               color=r.Color(255, 0, 0, 0))
