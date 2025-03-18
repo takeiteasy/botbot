@@ -130,9 +130,9 @@ class HorseNode(BaseHorseNode):
         self._acceleration = 0
         self._time = 0
         self._last_burst = 0
-        self._burst_cooldown = random.uniform(.5, 2.)
+        self._burst_cooldown = random.uniform(1., 3.)
         self._bursts_remaining = 4
-        self._burst_chance = .1
+        self._burst_chance = .2
         self._finished = False
         self.add_child(self._timer)
         if random.random() < .5:
@@ -158,12 +158,12 @@ class HorseNode(BaseHorseNode):
         self._time += delta
         if self._bursts_remaining > 0 and not self._finished:
             if self._time - self._last_burst > self._burst_cooldown and random.random() < self._burst_chance:
-                self._acceleration = random.uniform(200., 250.)
+                self._acceleration = random.uniform(200., 240.)
                 self._last_burst = self._time
                 self._bursts_remaining -= 1
-                self._burst_cooldown = random.uniform(.5, 2.)
+                self._burst_cooldown = random.uniform(1., 3.)
         if self._acceleration > 0:
-            self._acceleration *= 0.95
+            self._acceleration *= 0.98
         speed_variation = (sin(self._time * 2.0) * 20 +
                             sin(self._time * 3.0) * 10)
         self._current_speed = (
@@ -306,7 +306,7 @@ class FanNode(BaseFanNode):
             self.add_child(FanAccessoryNode(self.gender, k, v))
 
 class StandsNode(Actor):
-    def __init__(self, **kwargs):
+    def __init__(self, fan_radius: int = 60, **kwargs):
         super().__init__(**kwargs)
         screen, hscreen = _screen_size()
         center = Vector2([hscreen.x / 2., -hscreen.y / 2.])
@@ -319,9 +319,10 @@ class StandsNode(Actor):
                                      width=inner_box.x,
                                      height=inner_box.y,
                                      color=(100, 100, 100, 255)))
-        points = [(p[0] + FanNode.size[0], p[1] + FanNode.size[1]) for p in _poisson_disc_sampling(inner_box.x - 50, inner_box.y - 50, 60)]
-        for p in [Vector2([p[0] + 25, p[1] + 25 - hscreen.y])for p in points]:
-            self.add_child(FanNode(position=p))
+        points = [(p[0] + FanNode.size[0], p[1] + FanNode.size[1]) for p in _poisson_disc_sampling(inner_box.x - 50, inner_box.y - 50, fan_radius)]
+        fans = [FanNode(position=p) for p in [Vector2([p[0] + 25, p[1] + 25 - hscreen.y])for p in points]]
+        for fan in sorted(fans, key=lambda x: x.dst.y):
+            self.add_child(fan)
         self.add_child(FenceNode(height=20, divisions=20))
 
 class HorseRaces(Scene):
@@ -356,5 +357,5 @@ class HorseRaces(Scene):
     def step(self, delta):
         remaining_horses = [x for x in [self.find_child(name=f"Horse{i + 1}") for i in range(_HORSE_COUNT)] if x is not None]
         for i, horse in enumerate(sorted(remaining_horses, key=lambda x: x.dst.x)):
-            horse.burst_chance = .1 + (i * .1)
+            horse.burst_chance = .2 + (i * .5)
         super().step(delta)
