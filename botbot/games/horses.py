@@ -86,7 +86,21 @@ def _poisson_disc_sampling(width, height, r, k=30):
             active.pop(point_index)
     return points
 
-class HorseNode(SpriteNode): 
+class BaseHorseNode(SpriteNode):
+    def _offset(self):
+        return self.position + self.origin - (Vector2(list(_HORSE_SIZE)) / 2.)
+
+class HorseCustomization(BaseHorseNode):
+    def __init__(self, texture: Texture, **kwargs):
+        super().__init__(texture=texture, **kwargs)
+    
+    def step(self, delta):
+        self.position = self.parent.position
+        self.origin = self.parent.origin
+        self.source = self.parent.source
+        self.dst = self.parent.dst
+
+class HorseNode(BaseHorseNode): 
     def __init__(self, breed: int, number: int, race_name: str, **kwargs):
         self._breed = breed
         self._race_name = race_name
@@ -98,14 +112,13 @@ class HorseNode(SpriteNode):
                          source=r.Rectangle(0, 0, _HORSE_SIZE[0], _HORSE_SIZE[1]),
                          dst=r.Rectangle(px, py, _HORSE_SIZE[0], _HORSE_SIZE[1]),
                          **kwargs)
-        # self._animation =  "Idle" if random() < .5 else "Eating"
         self._animation = "Galloping"
         y, f, s = _horse_animation(self._animation)
         self._animation_y = y
         self._orientation = HorseOrientation.EAST
         self._frame_max = f
         self._frame_current = 0
-        self._base_animation_speed = s  # Store the base animation speed
+        self._base_animation_speed = s
         self._animation_speed = s
         self._timer = TimerNode(duration=s,
                                 on_complete=self._on_complete,
@@ -122,9 +135,10 @@ class HorseNode(SpriteNode):
         self._burst_chance = .1
         self._finished = False
         self.add_child(self._timer)
-
-    def _offset(self):
-        return self.position + self.origin - (Vector2(list(_HORSE_SIZE)) / 2.)
+        if random.random() < .5:
+            self.add_child(HorseCustomization(texture=Texture(f"assets/horses/customizations/markings/{random.randint(1, 8)}.png")))
+        if random.random() < .5:
+            self.add_child(HorseCustomization(texture=Texture(f"assets/horses/customizations/hair/{random.randint(1, 30)}.png")))
 
     def _on_complete(self):
         if self._frame_current + 1 < self._frame_max:
@@ -141,7 +155,6 @@ class HorseNode(SpriteNode):
         self._burst_chance = value
     
     def step(self, delta):
-        super().step(delta)
         self._time += delta
         if self._finished:
             self._current_speed = self._base_speed
@@ -160,16 +173,13 @@ class HorseNode(SpriteNode):
                 self._base_speed + 
                 speed_variation + 
                 self._acceleration)
-        if not self._finished and self.dst.x > self._target:
+        if not self._finished and (self.dst.x + _HORSE_SIZE[0] - 12) >= self._target:
             self._finished = True
         if self.dst.x < self._move_target:
             self.dst.x += self._current_speed * delta
-
-    def draw(self):
-        r.draw_texture_pro(self.texture,
-                           [self._frame_current * _HORSE_SIZE[0], self._animation_y, self.source.width, self.source.height],
-                           [self.dst.x, self.dst.y, self.dst.width, self.dst.height],
-                           [*-self._offset()], self.rotation, self.color)
+        self.source.x = self._frame_current * _HORSE_SIZE[0]
+        self.source.y = self._animation_y
+        super().step(delta)
 
 class GrassNode(SpriteNode):
     width = 16
@@ -188,9 +198,10 @@ class GrassNode(SpriteNode):
                          **kwargs)
 
 class CheckerboardNode(SpriteNode):
-    def __init__(self, position: Vector2,
+    def __init__(self,
+                 position: Vector2,
                  size: Vector2,
-                 check_size: Vector2,
+                 check_size: Vector2 = Vector2([16, 16]),
                  color1: tuple[int, int, int, int] = (255, 255, 255, 255),
                  color2: tuple[int, int, int, int] = (0, 0, 0, 255),
                  **kwargs):
@@ -218,6 +229,20 @@ class FenceNode(Actor):
                                     thickness=3,
                                     color=(0, 0, 0, 255)))
 
+class StandsNode(Actor):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        screen, hscreen = _screen_size()
+        center = Vector2([hscreen.x / 2., -hscreen.y / 2.])
+        self.add_child(RectangleNode(position=center,
+                                     width=hscreen.x,
+                                     height=hscreen.y,
+                                     color=r.GRAY))
+        self.add_child(RectangleNode(position=center,
+                                     width=hscreen.x - 50,
+                                     height=hscreen.y - 50,
+                                     color=(100, 100, 100, 255)))
+
 class HorseRaces(Scene):
     background_color = (129, 186, 68, 255)
 
@@ -231,12 +256,10 @@ class HorseRaces(Scene):
         for p in points:
             self.add_child(GrassNode(Vector2([p[0], p[1]]) - hscreen))
         self._target = hscreen.x - _HORSE_SIZE[0]
+        self.add_child(StandsNode())
         self.add_child(CheckerboardNode(position=Vector2([self._target + (_HORSE_SIZE[0] / 2.),
                                                           hscreen.y / 2.]),
-                                        size=Vector2([_HORSE_SIZE[0], hscreen.y]),
-                                        check_size=Vector2([16, 16]),
-                                        color1=(255, 255, 255, 255),
-                                        color2=(0, 0, 0, 255)))
+                                        size=Vector2([_HORSE_SIZE[0], hscreen.y])))
         self.add_child(LineNode(position=Vector2([self._target, 0]),
                                 end=Vector2([self._target, screen.y]),
                                 thickness=3,

@@ -405,6 +405,7 @@ class LineNode(ShapeActor):
     @override
     def draw(self):
         self._draw([*self.position], [*self.end], self.thickness, self.color)
+        super().draw()
 
 @dataclass
 class RectangleNode(ShapeActor):
@@ -420,6 +421,7 @@ class RectangleNode(ShapeActor):
             self._draw(rec, self.line_thickness, self.color)
         else:
             self._draw(rec, self.color)
+        super().draw()
 
 @dataclass
 class CircleNode(ShapeActor):
@@ -430,6 +432,7 @@ class CircleNode(ShapeActor):
     @override
     def draw(self):
         self._draw(int(self.position.x), int(self.position.y), self.radius, self.color)
+        super().draw()
 
 @dataclass
 class TriangleNode(ShapeActor):
@@ -447,7 +450,7 @@ class TriangleNode(ShapeActor):
         if cross(stri[0], stri[1], stri[2]) > 0:
             stri[1], stri[2] = stri[2], stri[1]
         self._draw([*stri[0]], [*stri[1]], [*stri[2]], self.color)
-
+        super().draw()
 @dataclass
 class EllipseNode(ShapeActor):
     draw_func = rl.DrawEllipse
@@ -458,6 +461,7 @@ class EllipseNode(ShapeActor):
     @override
     def draw(self):
         self._draw(self.position.x, self.position.y, self.width, self.height, self.color)
+        super().draw()
 
 @dataclass
 class SpriteNode(ShapeActor):
@@ -486,6 +490,7 @@ class SpriteNode(ShapeActor):
                            [self.source.x, self.source.y, self.source.width, self.source.height],
                            [self.dst.x, self.dst.y, self.dst.width * self.scale.x, self.dst.height * self.scale.y],
                            [*(-self._offset() * self.scale)], self.rotation, self.color)
+        super().draw()
 
 @dataclass
 class LabelNode(ShapeActor):
@@ -521,6 +526,7 @@ class LabelNode(ShapeActor):
         if not self.font:
             self.font = r.get_font_default()
         r.draw_text_pro(self.font, self.text, [0,0], [*-self._offset()], self.rotation, self.font_size, self.spacing, self.color)
+        super().draw()
 
 class AudioActor(Actor):
     volume: float = 1.
