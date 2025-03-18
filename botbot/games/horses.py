@@ -1,4 +1,4 @@
-from ..scene import Scene
+from ..scene import *
 from ..raylib import Texture, TextureFromImage
 from ..actor import *
 from ..easing import * 
@@ -40,7 +40,7 @@ def _screen_size() -> tuple[Vector2, Vector2]:
         screen = screen / 2
     return screen, screen / 2.
 
-def _horse_animation(name: str, orientation: HorseOrientation = HorseOrientation.EAST) -> tuple[int, float, float]:
+def _horse_animation(name: str, orientation: HorseOrientation = HorseOrientation.EAST) -> tuple[int, int, float]:
     for i, (n, f, s) in enumerate(_HORSE_ANIMATIONS):
         if n == name:
             return i * (_HORSE_SIZE[1] * 4) + ((orientation.value + 1) * _HORSE_SIZE[1]), f, s
@@ -106,7 +106,30 @@ class HorseCustomization(BaseHorseNode):
         self.source = self.parent.source
         self.dst = self.parent.dst
 
-class HorseNode(BaseHorseNode): 
+class HorseNode(BaseHorseNode, FiniteStateMachine):
+    states = ["Starting", "Idle", "Racing"]
+    transitions = [
+        Transition(trigger="idle", source="Starting", dest="Idle"),
+        Transition(trigger="race", source="Idle", dest="Racing"),
+    ]
+
+    def _set_animation(self, animation: str):
+        self._animation = animation
+        y, f, s = _horse_animation(animation)
+        self._animation_y = y
+        self._orientation = HorseOrientation.EAST
+        self._frame_max = f
+        self._frame_current = 0
+        self._base_animation_speed = s
+        self._animation_speed = s
+        self.remove_children(name="Animation")
+        self._timer = None
+        self._timer = TimerNode(name="Animation",
+                                duration=s,
+                                on_complete=self._on_complete,
+                                repeat=True)
+        self.add_child(self._timer)
+
     def __init__(self, breed: int, number: int, race_name: str, **kwargs):
         self._breed = breed
         self._race_name = race_name
@@ -114,23 +137,16 @@ class HorseNode(BaseHorseNode):
         hh = (hscreen.y / 2.) / _HORSE_COUNT
         py = (hscreen.y / 4.) + (hh * number + 1) - (_HORSE_SIZE[1] / 4)
         px = -hscreen.x - (_HORSE_SIZE[0] / 2)
-        super().__init__(texture=Texture(f"assets/horses/{self._breed}.png"),
-                         source=r.Rectangle(0, 0, _HORSE_SIZE[0], _HORSE_SIZE[1]),
-                         dst=r.Rectangle(px, py, _HORSE_SIZE[0], _HORSE_SIZE[1]),
-                         **kwargs)
-        self._animation = "Galloping"
-        y, f, s = _horse_animation(self._animation)
-        self._animation_y = y
-        self._orientation = HorseOrientation.EAST
-        self._frame_max = f
-        self._frame_current = 0
-        self._base_animation_speed = s
-        self._animation_speed = s
-        self._timer = TimerNode(duration=s,
-                                on_complete=self._on_complete,
-                                repeat=True)
+        BaseHorseNode.__init__(self,
+                               texture=Texture(f"assets/horses/{self._breed}.png"),
+                               source=r.Rectangle(0, 0, _HORSE_SIZE[0], _HORSE_SIZE[1]),
+                               dst=r.Rectangle(px, py, _HORSE_SIZE[0], _HORSE_SIZE[1]),
+                               **kwargs)
+        FiniteStateMachine.__init__(self)
+        self._set_animation("Walking")
         self._target = hscreen.x - _HORSE_SIZE[0]
-        self._move_target = hscreen.x + _HORSE_SIZE[0]
+        self._move_target_start = px + _HORSE_SIZE[0]
+        self._move_target_finish = hscreen.x + _HORSE_SIZE[0]
         self._base_speed = random.uniform(100, 120)
         self._current_speed = self._base_speed
         self._acceleration = 0
@@ -140,7 +156,6 @@ class HorseNode(BaseHorseNode):
         self._bursts_remaining = 6
         self._burst_chance = random.uniform(.2, .4)
         self._finished = False
-        self.add_child(self._timer)
         if random.random() < .5:
             self.add_child(HorseCustomization(texture=Texture(f"assets/horses/customizations/markings/{random.randint(1, 8)}.png")))
         if random.random() < .5:
@@ -151,8 +166,27 @@ class HorseNode(BaseHorseNode):
             self._frame_current += 1
         else:
             self._frame_current = 0
-    
-    def step(self, delta):
+
+    def _move(self, delta, speed: float):
+        self.dst.x += speed * delta
+        self.source.x = self._frame_current * _HORSE_SIZE[0]
+        self.source.y = self._animation_y
+
+    def _when_starting(self, delta):
+        self._move(delta, 25.)
+        if self.dst.x >= self._move_target_start:
+            self.idle()
+
+    def _start_racing(self):
+        if self.state == "Idle":
+            self._set_animation("Galloping")
+            self.race()
+
+    def _when_idle(self, delta):
+        self.add_child(TimerNode(duration=10.,
+                                 on_complete=self._start_racing))
+
+    def _when_racing(self, delta):
         self._time += delta
         if self._bursts_remaining > 0 and not self._finished:
             if self._time - self._last_burst > self._burst_cooldown and random.random() < self._burst_chance:
@@ -171,13 +205,20 @@ class HorseNode(BaseHorseNode):
             self._acceleration)
         if not self._finished and (self.dst.x + _HORSE_SIZE[0] - 12) >= self._target:
             self._finished = True
-        if self.dst.x < self._move_target:
-            self.dst.x += self._current_speed * delta
-            self.source.x = self._frame_current * _HORSE_SIZE[0]
-            self.source.y = self._animation_y
-            super().step(delta)
+        if self.dst.x < self._move_target_finish:
+            self._move(delta, self._current_speed)
         else:
             self.remove_me()
+    
+    def step(self, delta):
+        match self.state:
+            case "Starting":
+                self._when_starting(delta)
+            case "Idle":
+                self._when_idle(delta)
+            case "Racing":
+                self._when_racing(delta)
+        super().step(delta)
 
 class GrassNode(SpriteNode):
     width = 16
@@ -335,8 +376,10 @@ class FlashingLabelNode(LabelNode):
         self._on = initial_state
         self._enabled = initial_enabled
         super().__init__(text=text, **kwargs)
-        self._timer = TimerNode(duration=duration_on if self._on else duration_off,
-                                on_complete=self._on_complete)
+        self._timer = TimerNode(name="test",
+                                duration=duration_on if self._on else duration_off,
+                                on_complete=self._on_complete,
+                                remove_on_complete=False)
         self.add_child(self._timer)
     
     def _on_complete(self):
