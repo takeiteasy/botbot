@@ -94,7 +94,7 @@ class HorseCustomization(BaseHorseNode):
     def __init__(self, texture: Texture, **kwargs):
         super().__init__(texture=texture, **kwargs)
     
-    def step(self, delta):
+    def step(self, _):
         self.position = self.parent.position
         self.origin = self.parent.origin
         self.source = self.parent.source
@@ -174,9 +174,11 @@ class HorseNode(BaseHorseNode):
             self._finished = True
         if self.dst.x < self._move_target:
             self.dst.x += self._current_speed * delta
-        self.source.x = self._frame_current * _HORSE_SIZE[0]
-        self.source.y = self._animation_y
-        super().step(delta)
+            self.source.x = self._frame_current * _HORSE_SIZE[0]
+            self.source.y = self._animation_y
+            super().step(delta)
+        else:
+            self.remove_me()
 
 class GrassNode(SpriteNode):
     width = 16
@@ -227,49 +229,6 @@ class FenceNode(Actor):
                                     color=(0, 0, 0, 255)))
 
 class BaseFanNode(SpriteNode):
-    size = (19, 32)
-
-    def _offset(self):
-        return self.position + self.origin - (Vector2(list(self.__class__.size)) / 2.)
-
-class FanAccessoryNode(BaseFanNode):
-    folder_map = {
-        "Body": "00 - Body",
-        "Shoes": "01 - Shoes",
-        "Pants": "02 - Pants",
-        "Mouth": "03 - Mouth",
-        "Eyes": "04 - Eyes",
-        "Shirt": "05 - Shirts",
-        "Hairstyles": "06 - Hairstyles",
-        "Accessories": "07 - Accessories"
-    }
-    file_map = {
-        "Body": "Body",
-        "Shoes": "Shoes",
-        "Pants": "Pants",
-        "Mouth": "Mouth",
-        "Eyes": "Eye",
-        "Shirt": "Shirt",
-        "Hairstyles": "Hair",
-        "Accessories": "Acc"
-    }
-
-    def __init__(self, gender: str, body_part: str, index: int, **kwargs):
-        self.gender = gender
-        path = self.__class__.folder_map[body_part]
-        file = self.__class__.file_map[body_part]
-        if body_part == "Eyes" and self.gender == "Female":
-            file = "Eyes"
-        super().__init__(texture=Texture(f"assets/people/{self.gender}/{path}/{file}0{index}.png"),
-                         **kwargs)
-
-    def step(self, delta):
-        self.position = self.parent.position
-        self.origin = self.parent.origin
-        self.source = self.parent.source
-        self.dst = self.parent.dst
-
-class FanNode(BaseFanNode):
     counts = {
         "Male": {
             "Body": 3,
@@ -291,7 +250,48 @@ class FanNode(BaseFanNode):
             "Accessories": 5
         }
     }
+    folder_map = {
+        "Body": "00 - Body",
+        "Shoes": "01 - Shoes",
+        "Pants": "02 - Pants",
+        "Mouth": "03 - Mouth",
+        "Eyes": "04 - Eyes",
+        "Shirt": "05 - Shirts",
+        "Hairstyles": "06 - Hairstyles",
+        "Accessories": "07 - Accessories"
+    }
+    file_map = {
+        "Body": "Body",
+        "Shoes": "Shoes",
+        "Pants": "Pants",
+        "Mouth": "Mouth",
+        "Eyes": "Eye",
+        "Shirt": "Shirt",
+        "Hairstyles": "Hair",
+        "Accessories": "Acc"
+    }
+    size = (19, 32)
 
+    def _offset(self):
+        return self.position + self.origin - (Vector2(list(self.__class__.size)) / 2.)
+
+class FanAccessoryNode(BaseFanNode):
+    def __init__(self, gender: str, body_part: str, index: int, **kwargs):
+        self.gender = gender
+        path = self.__class__.folder_map[body_part]
+        file = self.__class__.file_map[body_part]
+        if body_part == "Eyes" and self.gender == "Female":
+            file = "Eyes"
+        super().__init__(texture=Texture(f"assets/people/{self.gender}/{path}/{file}0{index}.png"),
+                         **kwargs)
+
+    def step(self, delta):
+        self.position = self.parent.position
+        self.origin = self.parent.origin
+        self.source = self.parent.source
+        self.dst = self.parent.dst
+
+class FanNode(BaseFanNode):
     def __init__(self, position: Vector2, **kwargs):
         self.gender = random.choice(["Male", "Female"])
         self.accessories = { k: random.randint(1, v) for k, v in self.__class__.counts[self.gender].items() }
@@ -354,6 +354,7 @@ class HorseRaces(Scene):
         self.add_horses()
     
     def step(self, delta):
-        for i, horse in enumerate(sorted([self.find_child(name=f"Horse{i + 1}") for i in range(_HORSE_COUNT)], key=lambda x: x.dst.x)):
+        remaining_horses = [x for x in [self.find_child(name=f"Horse{i + 1}") for i in range(_HORSE_COUNT)] if x is not None]
+        for i, horse in enumerate(sorted(remaining_horses, key=lambda x: x.dst.x)):
             horse.burst_chance = .1 + (i * .1)
         super().step(delta)
