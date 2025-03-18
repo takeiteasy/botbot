@@ -10,6 +10,7 @@ from math import sin
 import numpy as np
 import random
 from typing import Optional
+import copy
 
 _HORSE_SIZE = (64, 48)
 _HORSE_ANIMATIONS = [
@@ -27,6 +28,11 @@ class HorseOrientation(Enum):
     WEST = 1
     SOUTH = 2
     NORTH = 3
+
+def shuffled(iterable):
+    tmp = copy.copy(iterable)
+    random.shuffle(iterable)
+    return tmp
 
 def _screen_size() -> tuple[Vector2, Vector2]:
     screen = Vector2([r.get_render_width(), r.get_render_height()])
@@ -325,6 +331,45 @@ class StandsNode(Actor):
             self.add_child(fan)
         self.add_child(FenceNode(height=20, divisions=20))
 
+
+class ScreenNode(Actor):
+    def __init__(self, horse_names: list[str], **kwargs):
+        super().__init__(**kwargs)
+        screen, hscreen = _screen_size()
+        position = -hscreen / 2. - Vector2([0, 10])
+        size = hscreen / 1.25
+        padding = 20
+        self.add_child(RectangleNode(position=position + Vector2([0, size.y / 2.]),
+                                     width=40,
+                                     height=40,
+                                     color=(50, 50, 50, 255)))
+        self.add_child(RectangleNode(position=position,
+                                     width=size.x,
+                                     height=size.y,
+                                     color=(50, 50, 50, 255)))
+        self.add_child(RectangleNode(position=position,
+                                     width=size.x - padding,
+                                     height=size.y - padding,
+                                     color=(0, 0, 0, 255)))
+        label_position = Vector2([position.x, position.y])
+        label_line_height = 8
+        for i, name in enumerate(horse_names):
+            rnd = random.randint(1, 100)
+            label = LabelNode(text=f"{name}: #{i + 1} ({rnd}/{rnd*2})",
+                              font=r.get_font_default(),
+                              font_size=20,
+                              color=r.Color(255, 0, 0, 0))
+            p = label_position - (Vector2([0., label.height]) / 2.)
+            p.y -= size.y / 2. - (label.height + padding)
+            label_position.y += label.height + label_line_height
+            label.position = p
+            self.add_child(label)
+            self.add_child(ActionSequence(actions=[WaitAction(duration=i * .25),
+                                                   ActionNode(target=255,
+                                                              field="color.a",
+                                                              actor=label,
+                                                              easing=ease_linear_in)]))
+
 class HorseRaces(Scene):
     background_color = (129, 186, 68, 255)
 
@@ -332,12 +377,11 @@ class HorseRaces(Scene):
         super().__init__(**kwargs)
         self._horse_names = open("assets/names.txt", "r").read().split("\n")
     
-    def add_horses(self):
+    def add_horses(self, names: list[str]):
         for i in range(_HORSE_COUNT):
             self.remove_children(name=f"Horse{i + 1}")
-        names = random.sample(self._horse_names, _HORSE_COUNT)
         for i, breed in enumerate(random.sample(list(range(1, _HORSE_COUNT + 1)), _HORSE_COUNT)):
-            self.add_child(HorseNode(breed, i, race_name=names[i], name=f"Horse{i + 1}"))
+            self.add_child(HorseNode(breed=breed, number=i, race_name=names[i], name=f"Horse{i + 1}"))
 
     def enter(self):
         screen, hscreen = _screen_size()
@@ -351,8 +395,10 @@ class HorseRaces(Scene):
         self.add_child(LineNode(position=Vector2([self._target, 0]),
                                 end=Vector2([self._target, screen.y]),
                                 thickness=3,
-                                color=(255, 0, 0, 255)))   
-        self.add_horses()
+                                color=(255, 0, 0, 255)))
+        names = shuffled(random.sample(self._horse_names, _HORSE_COUNT))
+        self.add_horses(names)
+        self.add_child(ScreenNode(horse_names=names))
     
     def step(self, delta):
         remaining_horses = [x for x in [self.find_child(name=f"Horse{i + 1}") for i in range(_HORSE_COUNT)] if x is not None]

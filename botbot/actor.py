@@ -256,12 +256,11 @@ class ActionNode(ActionType, TimerNode):
                 def fn(x, y, z, w):
                     return self.easing(x, y, z, w)
                 f = getattr(obj, self.field[i])
-                if isinstance(f, float):
-                    setattr(obj, self.field[i], fn(elapsed, self._start, delta, self.duration))
+                if isinstance(f, float) or isinstance(f, int):
+                    v = type(f)(fn(elapsed, self._start, delta, self.duration))
+                    setattr(obj, self.field[i], v)
                 else:
                     z = list(zip(self._start, delta))
-                    for start, delta in z:
-                        print(start, delta)
                     v = [fn(elapsed, start, delta, self.duration) for start, delta in z]
                     setattr(obj, self.field[i], v)
             else:
