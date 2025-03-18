@@ -322,6 +322,48 @@ class StandsNode(Actor):
             self.add_child(fan)
         self.add_child(FenceNode(height=20, divisions=20))
 
+class FlashingLabelNode(LabelNode):
+    def __init__(self,
+                 text: str,
+                 duration_on: float = 1.,
+                 duration_off: float = 1.,
+                 initial_state: bool = True,
+                 initial_enabled: bool = True,
+                 **kwargs):
+        self._duration_on = duration_on
+        self._duration_off = duration_off
+        self._on = initial_state
+        self._enabled = initial_enabled
+        super().__init__(text=text, **kwargs)
+        self._timer = TimerNode(duration=duration_on if self._on else duration_off,
+                                on_complete=self._on_complete)
+        self.add_child(self._timer)
+    
+    def _on_complete(self):
+        self._on = not self._on
+        self._timer.duration = self._duration_on if self._on else self._duration_off
+        self._timer.start()
+    
+    @property
+    def enabled(self):
+        return self._enabled
+    
+    @enabled.setter
+    def enabled(self, value: bool):
+        if value != self._enabled:
+            self._enabled = value
+            if self._enabled:
+                self._timer.start()
+            else:
+                self._timer.stop()
+                self._on = False
+    
+    def draw(self):
+        if self._on:
+            super().draw()
+        else:
+            for child in self.all_children():
+                child.draw()
 
 class ScreenNode(Actor):
     def __init__(self, horse_names: list[str], **kwargs):
@@ -345,21 +387,41 @@ class ScreenNode(Actor):
         label_position = Vector2([position.x, position.y])
         label_line_height = 8
         odds = random.sample(list(range(1, 100)), _HORSE_COUNT)
+        last_position = None
+        rainbow_colors = [
+            r.Color(255, 0, 0, 0),      # Red
+            r.Color(255, 127, 0, 0),    # Orange  
+            r.Color(255, 255, 0, 0),    # Yellow
+            r.Color(0, 255, 0, 0),      # Green
+            r.Color(0, 0, 255, 0),      # Blue
+            r.Color(75, 0, 130, 0),     # Indigo
+            r.Color(148, 0, 211, 0),    # Violet
+            r.Color(255, 255, 255, 0),  # White
+        ]
         for i, name in enumerate(horse_names):
             label = LabelNode(text=f"{name}: #{i+1} ({odds[i]}/{odds[i]*2})",
                               font=r.get_font_default(),
                               font_size=20,
-                              color=r.Color(255, 0, 0, 0))
+                              color=rainbow_colors[i])
             p = label_position - (Vector2([0., label.height]) / 2.)
             p.y -= size.y / 2. - (label.height + padding)
             label_position.y += label.height + label_line_height
             label.position = p
+            last_position = p
             self.add_child(label)
-            self.add_child(ActionSequence(actions=[WaitAction(duration=.1 + (i * .25)),
+            self.add_child(ActionSequence(actions=[WaitAction(duration=(i + 1) * .25),
                                                    ActionNode(target=255,
                                                               field="color.a",
                                                               actor=label,
                                                               easing=ease_linear_in)]))
+        flashing_label = FlashingLabelNode(text="Place your bets!",
+                                         duration_on=.5,
+                                         duration_off=.5,
+                                         font=r.get_font_default(),
+                                         font_size=20,
+                                         color=r.Color(255, 0, 0, 255))
+        flashing_label.position = last_position + Vector2([0, flashing_label.height + label_line_height * 2])
+        self.add_child(flashing_label)
 
 class HorseRaces(Scene):
     background_color = (129, 186, 68, 255)
