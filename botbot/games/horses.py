@@ -156,23 +156,20 @@ class HorseNode(BaseHorseNode):
     
     def step(self, delta):
         self._time += delta
-        if self._finished:
-            self._current_speed = self._base_speed
-        else:
-            if self._bursts_remaining > 0:
-                if self._time - self._last_burst > self._burst_cooldown and random.random() < self._burst_chance:
-                    self._acceleration = random.uniform(200., 250.)
-                    self._last_burst = self._time
-                    self._bursts_remaining -= 1
-                    self._burst_cooldown = random.uniform(.5, 2.)
-            if self._acceleration > 0:
-                self._acceleration *= 0.95
-            speed_variation = (sin(self._time * 2.0) * 20 +
-                               sin(self._time * 3.0) * 10)
-            self._current_speed = (
-                self._base_speed + 
-                speed_variation + 
-                self._acceleration)
+        if self._bursts_remaining > 0 and not self._finished:
+            if self._time - self._last_burst > self._burst_cooldown and random.random() < self._burst_chance:
+                self._acceleration = random.uniform(200., 250.)
+                self._last_burst = self._time
+                self._bursts_remaining -= 1
+                self._burst_cooldown = random.uniform(.5, 2.)
+        if self._acceleration > 0:
+            self._acceleration *= 0.95
+        speed_variation = (sin(self._time * 2.0) * 20 +
+                            sin(self._time * 3.0) * 10)
+        self._current_speed = (
+            self._base_speed + 
+            speed_variation + 
+            self._acceleration)
         if not self._finished and (self.dst.x + _HORSE_SIZE[0] - 12) >= self._target:
             self._finished = True
         if self.dst.x < self._move_target:
@@ -229,19 +226,103 @@ class FenceNode(Actor):
                                     thickness=3,
                                     color=(0, 0, 0, 255)))
 
+class BaseFanNode(SpriteNode):
+    size = (19, 32)
+
+    def _offset(self):
+        return self.position + self.origin - (Vector2(list(self.__class__.size)) / 2.)
+
+class FanAccessoryNode(BaseFanNode):
+    folder_map = {
+        "Body": "00 - Body",
+        "Shoes": "01 - Shoes",
+        "Pants": "02 - Pants",
+        "Mouth": "03 - Mouth",
+        "Eyes": "04 - Eyes",
+        "Shirt": "05 - Shirts",
+        "Hairstyles": "06 - Hairstyles",
+        "Accessories": "07 - Accessories"
+    }
+    file_map = {
+        "Body": "Body",
+        "Shoes": "Shoes",
+        "Pants": "Pants",
+        "Mouth": "Mouth",
+        "Eyes": "Eye",
+        "Shirt": "Shirt",
+        "Hairstyles": "Hair",
+        "Accessories": "Acc"
+    }
+
+    def __init__(self, gender: str, body_part: str, index: int, **kwargs):
+        self.gender = gender
+        path = self.__class__.folder_map[body_part]
+        file = self.__class__.file_map[body_part]
+        if body_part == "Eyes" and self.gender == "Female":
+            file = "Eyes"
+        super().__init__(texture=Texture(f"assets/people/{self.gender}/{path}/{file}0{index}.png"),
+                         **kwargs)
+
+    def step(self, delta):
+        self.position = self.parent.position
+        self.origin = self.parent.origin
+        self.source = self.parent.source
+        self.dst = self.parent.dst
+
+class FanNode(BaseFanNode):
+    counts = {
+        "Male": {
+            "Body": 3,
+            "Shoes": 3,
+            "Pants": 3,
+            "Mouth": 3,
+            "Eyes": 5,
+            "Shirt": 7,
+            "Hairstyles": 7,
+            "Accessories": 7
+        },
+        "Female": {
+            "Body": 3,
+            "Shoes": 3,
+            "Mouth": 3,
+            "Eyes": 3,
+            "Shirt": 5,
+            "Hairstyles": 5,
+            "Accessories": 5
+        }
+    }
+
+    def __init__(self, position: Vector2, **kwargs):
+        self.gender = random.choice(["Male", "Female"])
+        self.accessories = { k: random.randint(1, v) for k, v in self.__class__.counts[self.gender].items() }
+        self.body = self.accessories.pop("Body")
+        super().__init__(texture=Texture(f"assets/people/{self.gender}/00 - Body/Body0{self.body}.png"),
+                         source=r.Rectangle(0, 0, self.__class__.size[0], self.__class__.size[1]),
+                         dst=r.Rectangle(position.x, position.y, self.__class__.size[0], self.__class__.size[1]),
+                         **kwargs)
+        for k, v in self.accessories.items():
+            if self.gender == "Female" and k == "Pants":
+                continue
+            self.add_child(FanAccessoryNode(self.gender, k, v))
+
 class StandsNode(Actor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         screen, hscreen = _screen_size()
         center = Vector2([hscreen.x / 2., -hscreen.y / 2.])
+        inner_box = hscreen - 50
         self.add_child(RectangleNode(position=center,
                                      width=hscreen.x,
                                      height=hscreen.y,
                                      color=r.GRAY))
         self.add_child(RectangleNode(position=center,
-                                     width=hscreen.x - 50,
-                                     height=hscreen.y - 50,
+                                     width=inner_box.x,
+                                     height=inner_box.y,
                                      color=(100, 100, 100, 255)))
+        points = [(p[0] + FanNode.size[0], p[1] + FanNode.size[1]) for p in _poisson_disc_sampling(inner_box.x - 50, inner_box.y - 50, 60)]
+        for p in [Vector2([p[0] + 25, p[1] + 25 - hscreen.y])for p in points]:
+            self.add_child(FanNode(position=p))
+        self.add_child(FenceNode(height=20, divisions=20))
 
 class HorseRaces(Scene):
     background_color = (129, 186, 68, 255)
@@ -252,15 +333,14 @@ class HorseRaces(Scene):
     
     def add_horses(self):
         for i in range(_HORSE_COUNT):
-            self.remove_child(name=f"Horse{i + 1}")
+            self.remove_children(name=f"Horse{i + 1}")
         names = random.sample(self._horse_names, _HORSE_COUNT)
         for i, breed in enumerate(random.sample(list(range(1, _HORSE_COUNT + 1)), _HORSE_COUNT)):
             self.add_child(HorseNode(breed, i, race_name=names[i], name=f"Horse{i + 1}"))
 
     def enter(self):
         screen, hscreen = _screen_size()
-        points = _poisson_disc_sampling(screen.x, screen.y, 50)
-        for p in points:
+        for p in _poisson_disc_sampling(screen.x, screen.y, 50):
             self.add_child(GrassNode(Vector2([p[0], p[1]]) - hscreen))
         self._target = hscreen.x - _HORSE_SIZE[0]
         self.add_child(StandsNode())

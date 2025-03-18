@@ -348,7 +348,10 @@ class ActionSequence(ActionType, TimerNode, Queue):
         self._complete()
 
 class EmitterNode(TimerNode):
-    def __init__(self, emit: Callable[[], Actor] | tuple[Type[Actor], dict] = None,  duration: float = 1., auto_start: bool = True):
+    def __init__(self,
+                 emit: Callable[[], Actor] | tuple[Type[Actor], dict] = None,
+                 duration: float = 1.,
+                 auto_start: bool = True):
         if callable(emit):
             self._emit = staticmethod(emit)
         else:
@@ -451,6 +454,7 @@ class TriangleNode(ShapeActor):
             stri[1], stri[2] = stri[2], stri[1]
         self._draw([*stri[0]], [*stri[1]], [*stri[2]], self.color)
         super().draw()
+
 @dataclass
 class EllipseNode(ShapeActor):
     draw_func = rl.DrawEllipse
@@ -480,16 +484,15 @@ class SpriteNode(ShapeActor):
 
     @override
     def draw(self):
-        if not self.texture:
-            return
-        if self.source.width == 0 or self.source.height == 0:
-            self.source = r.Rectangle(0, 0, self.texture.width, self.texture.height)
-        if self.dst.width == 0 or self.dst.height == 0:
-            self.dst = r.Rectangle(self.position.x, self.position.y, self.width, self.height)
-        r.draw_texture_pro(self.texture,
-                           [self.source.x, self.source.y, self.source.width, self.source.height],
-                           [self.dst.x, self.dst.y, self.dst.width * self.scale.x, self.dst.height * self.scale.y],
-                           [*(-self._offset() * self.scale)], self.rotation, self.color)
+        if self.texture:
+            if self.source.width == 0 or self.source.height == 0:
+                self.source = r.Rectangle(0, 0, self.texture.width, self.texture.height)
+            if self.dst.width == 0 or self.dst.height == 0:
+                self.dst = r.Rectangle(self.position.x, self.position.y, self.width, self.height)
+            r.draw_texture_pro(self.texture,
+                            [self.source.x, self.source.y, self.source.width, self.source.height],
+                            [self.dst.x, self.dst.y, self.dst.width * self.scale.x, self.dst.height * self.scale.y],
+                            [*(-self._offset() * self.scale)], self.rotation, self.color)
         super().draw()
 
 @dataclass
