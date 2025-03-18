@@ -10,3 +10,4 @@ build/
 twitch-*.txt
 *.db
 .vscode/
+assets/

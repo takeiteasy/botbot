@@ -249,6 +249,13 @@ class HorseRaces(Scene):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._horse_names = open("assets/names.txt", "r").read().split("\n")
+    
+    def add_horses(self):
+        for i in range(_HORSE_COUNT):
+            self.remove_child(name=f"Horse{i + 1}")
+        names = random.sample(self._horse_names, _HORSE_COUNT)
+        for i, breed in enumerate(random.sample(list(range(1, _HORSE_COUNT + 1)), _HORSE_COUNT)):
+            self.add_child(HorseNode(breed, i, race_name=names[i], name=f"Horse{i + 1}"))
 
     def enter(self):
         screen, hscreen = _screen_size()
@@ -264,10 +271,7 @@ class HorseRaces(Scene):
                                 end=Vector2([self._target, screen.y]),
                                 thickness=3,
                                 color=(255, 0, 0, 255)))   
-        self.add_child(FenceNode(height=20, divisions=20))
-        names = random.sample(self._horse_names, _HORSE_COUNT)
-        for i, breed in enumerate(random.sample(list(range(1, _HORSE_COUNT + 1)), _HORSE_COUNT)):
-            self.add_child(HorseNode(breed, i, race_name=names[i], name=f"Horse{i + 1}"))
+        self.add_horses()
     
     def step(self, delta):
         for i, horse in enumerate(sorted([self.find_child(name=f"Horse{i + 1}") for i in range(_HORSE_COUNT)], key=lambda x: x.dst.x)):
