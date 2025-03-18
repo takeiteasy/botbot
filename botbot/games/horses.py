@@ -137,8 +137,8 @@ class HorseNode(BaseHorseNode):
         self._time = 0
         self._last_burst = 0
         self._burst_cooldown = random.uniform(1., 3.)
-        self._bursts_remaining = 4
-        self._burst_chance = .2
+        self._bursts_remaining = 6
+        self._burst_chance = random.uniform(.2, .4)
         self._finished = False
         self.add_child(self._timer)
         if random.random() < .5:
@@ -152,14 +152,6 @@ class HorseNode(BaseHorseNode):
         else:
             self._frame_current = 0
     
-    @property
-    def burst_chance(self):
-        return self._burst_chance
-    
-    @burst_chance.setter
-    def burst_chance(self, value):
-        self._burst_chance = value
-    
     def step(self, delta):
         self._time += delta
         if self._bursts_remaining > 0 and not self._finished:
@@ -168,6 +160,7 @@ class HorseNode(BaseHorseNode):
                 self._last_burst = self._time
                 self._bursts_remaining -= 1
                 self._burst_cooldown = random.uniform(1., 3.)
+                self._burst_chance = random.uniform(.2, .4)
         if self._acceleration > 0:
             self._acceleration *= 0.98
         speed_variation = (sin(self._time * 2.0) * 20 +
@@ -397,9 +390,3 @@ class HorseRaces(Scene):
         names = shuffled(random.sample(self._horse_names, _HORSE_COUNT))
         self.add_horses(names)
         self.add_child(ScreenNode(horse_names=names))
-    
-    def step(self, delta):
-        remaining_horses = [x for x in [self.find_child(name=f"Horse{i + 1}") for i in range(_HORSE_COUNT)] if x is not None]
-        for i, horse in enumerate(sorted(remaining_horses, key=lambda x: x.dst.x)):
-            horse.burst_chance = .2 + (i * .5)
-        super().step(delta)
