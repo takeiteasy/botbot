@@ -307,8 +307,6 @@ class FanNode(BaseFanNode):
                          dst=r.Rectangle(position.x, position.y, self.__class__.size[0], self.__class__.size[1]),
                          **kwargs)
         for k, v in self.accessories.items():
-            if self.gender == "Female" and k == "Pants":
-                continue
             self.add_child(FanAccessoryNode(self.gender, k, v))
 
 class StandsNode(Actor):
@@ -353,9 +351,9 @@ class ScreenNode(Actor):
                                      color=(0, 0, 0, 255)))
         label_position = Vector2([position.x, position.y])
         label_line_height = 8
+        odds = random.sample(list(range(1, 100)), _HORSE_COUNT)
         for i, name in enumerate(horse_names):
-            rnd = random.randint(1, 100)
-            label = LabelNode(text=f"{name}: #{i} ({rnd}/{rnd*2})",
+            label = LabelNode(text=f"{name}: #{i+1} ({odds[i]}/{odds[i]*2})",
                               font=r.get_font_default(),
                               font_size=20,
                               color=r.Color(255, 0, 0, 0))
@@ -364,7 +362,7 @@ class ScreenNode(Actor):
             label_position.y += label.height + label_line_height
             label.position = p
             self.add_child(label)
-            self.add_child(ActionSequence(actions=[WaitAction(duration=i * .25),
+            self.add_child(ActionSequence(actions=[WaitAction(duration=.1 + (i * .25)),
                                                    ActionNode(target=255,
                                                               field="color.a",
                                                               actor=label,
