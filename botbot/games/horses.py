@@ -29,7 +29,7 @@ class HorseOrientation(Enum):
     SOUTH = 2
     NORTH = 3
 
-def shuffled(iterable):
+def _shuffled(iterable):
     tmp = copy.copy(iterable)
     random.shuffle(iterable)
     return tmp
@@ -110,7 +110,7 @@ class HorseNode(BaseHorseNode, FiniteStateMachine):
     states = ["Starting", "Idle", "Racing"]
     transitions = [
         Transition(trigger="idle", source="Starting", dest="Idle"),
-        Transition(trigger="race", source="Idle", dest="Racing"),
+        Transition(trigger="race", source="Idle", dest="Racing", before="start_race"),
     ]
 
     def _set_animation(self, animation: str):
@@ -161,6 +161,14 @@ class HorseNode(BaseHorseNode, FiniteStateMachine):
         if random.random() < .5:
             self.add_child(HorseCustomization(texture=Texture(f"assets/horses/customizations/hair/{random.randint(1, 30)}.png")))
 
+    @property
+    def horse_name(self):
+        return self._race_name
+    
+    @property
+    def finished(self):
+        return self._finished
+
     def _on_complete(self):
         if self._frame_current + 1 < self._frame_max:
             self._frame_current += 1
@@ -177,38 +185,26 @@ class HorseNode(BaseHorseNode, FiniteStateMachine):
         if self.dst.x >= self._move_target_start:
             self.idle()
 
-    def _start_racing(self):
-        if self.state == "Idle":
-            self._set_animation("Galloping")
-            self.race()
-
     def _when_idle(self, delta):
-        self.add_child(TimerNode(duration=10.,
-                                 on_complete=self._start_racing))
+        pass
 
     def _when_racing(self, delta):
         self._time += delta
         if self._bursts_remaining > 0 and not self._finished:
             if self._time - self._last_burst > self._burst_cooldown and random.random() < self._burst_chance:
-                self._acceleration = random.uniform(200., 240.)
+                self._acceleration = random.uniform(20., 100.)
                 self._last_burst = self._time
                 self._bursts_remaining -= 1
                 self._burst_cooldown = random.uniform(1., 3.)
                 self._burst_chance = random.uniform(.2, .4)
         if self._acceleration > 0:
-            self._acceleration *= 0.98
-        speed_variation = (sin(self._time * 2.0) * 20 +
-                            sin(self._time * 3.0) * 10)
-        self._current_speed = (
-            self._base_speed + 
-            speed_variation + 
-            self._acceleration)
+            self._acceleration *= .98
+        self._current_speed = self._base_speed + self._acceleration
         if not self._finished and (self.dst.x + _HORSE_SIZE[0] - 12) >= self._target:
             self._finished = True
+            self.scene.results.append(self.horse_name)
         if self.dst.x < self._move_target_finish:
             self._move(delta, self._current_speed)
-        else:
-            self.remove_me()
     
     def step(self, delta):
         match self.state:
@@ -219,6 +215,9 @@ class HorseNode(BaseHorseNode, FiniteStateMachine):
             case "Racing":
                 self._when_racing(delta)
         super().step(delta)
+    
+    def start_race(self):
+        self._set_animation("Galloping")
 
 class GrassNode(SpriteNode):
     width = 16
@@ -344,7 +343,7 @@ class FanNode(BaseFanNode):
             self.add_child(FanAccessoryNode(self.gender, k, v))
 
 class StandsNode(Actor):
-    def __init__(self, fan_radius: int = 60, **kwargs):
+    def __init__(self, fan_radius:int=50, **kwargs):
         super().__init__(**kwargs)
         screen, hscreen = _screen_size()
         center = Vector2([hscreen.x / 2., -hscreen.y / 2.])
@@ -408,8 +407,15 @@ class FlashingLabelNode(LabelNode):
             for child in self.all_children():
                 child.draw()
 
-class ScreenNode(Actor):
+class ScreenNode(Actor, FiniteStateMachine):
+    states = ["Idle", "Racing"]
+    transitions = [
+        Transition(trigger="start", source="Idle", dest="Racing", before="start_race"),
+        Transition(trigger="finish", source="Racing", dest="Idle", before="finish_race"),
+    ]
+    
     def __init__(self, horse_names: list[str], **kwargs):
+        FiniteStateMachine.__init__(self)
         super().__init__(**kwargs)
         screen, hscreen = _screen_size()
         position = -hscreen / 2. - Vector2([0, 10])
@@ -441,8 +447,11 @@ class ScreenNode(Actor):
             r.Color(148, 0, 211, 0),    # Violet
             r.Color(255, 255, 255, 0),  # White
         ]
+        self._horse_names = horse_names
+        self._label_positions = []
         for i, name in enumerate(horse_names):
-            label = LabelNode(text=f"{name}: #{i+1} ({odds[i]}/{odds[i]*2})",
+            label = LabelNode(name="HorseLabel",
+                              text=f"{name}: #{i+1} ({odds[i]}/{odds[i]*2})",
                               font=r.get_font_default(),
                               font_size=20,
                               color=rainbow_colors[i])
@@ -450,6 +459,7 @@ class ScreenNode(Actor):
             p.y -= size.y / 2. - (label.height + padding)
             label_position.y += label.height + label_line_height
             label.position = p
+            self._label_positions.append(p)
             last_position = p
             self.add_child(label)
             self.add_child(ActionSequence(actions=[WaitAction(duration=(i + 1) * .25),
@@ -457,27 +467,67 @@ class ScreenNode(Actor):
                                                               field="color.a",
                                                               actor=label,
                                                               easing=ease_linear_in)]))
-        flashing_label = FlashingLabelNode(text="Place your bets!",
-                                         duration_on=.5,
-                                         duration_off=.5,
-                                         font=r.get_font_default(),
-                                         font_size=20,
-                                         color=r.Color(255, 0, 0, 255))
-        flashing_label.position = last_position + Vector2([0, flashing_label.height + label_line_height * 2])
-        self.add_child(flashing_label)
+        self.flashing_label = FlashingLabelNode(text="Place your bets!",
+                                                duration_on=.5,
+                                                duration_off=.5,
+                                                font=r.get_font_default(),
+                                                font_size=20,
+                                                color=r.Color(255, 0, 0, 255))
+        self.flashing_label.position = last_position + Vector2([0, self.flashing_label.height + label_line_height * 2])
+        self.add_child(self.flashing_label)
+
+    def start_race(self):
+        self.flashing_label.enabled = False
+        self.remove_children(name="HorseLabel")
+        for i, name in enumerate(self._horse_names):
+            self.add_child(LabelNode(name=name,
+                                     text=name,
+                                     position=self._label_positions[i],
+                                     font=r.get_font_default(),
+                                     font_size=20,
+                                     color=r.Color(255, 0, 0, 255)))
+
+    def finish_race(self):
+        self.remove_children(name="HorseLabel")
+        self.remove_children(name="Winner")
+
+    def update_labels(self, horses: list[tuple[str, bool]]):
+        for i, (name, finished) in enumerate(horses):
+            label = self.find_child(name=name)
+            label.position = self._label_positions[i]
+            if finished:
+                if not self.find_child(name="Winner"):
+                    winner = FlashingLabelNode(name="Winner",
+                                               text=f"Winner: {name}!",
+                                               duration_on=.5,
+                                               duration_off=.5,
+                                               font=r.get_font_default(),
+                                               font_size=20,
+                                               color=r.Color(0, 255, 0, 255))
+                    winner.position = self._label_positions[-1] + Vector2([0, winner.height + 16])
+                    self.add_child(winner)
+                label.color = (0, 255 - (i * 20), 0, 255)
+            else:
+                label.color = (255 - (i * 10), 0, 0, 255)
 
 class HorseRaces(Scene):
+    states = ["PreRace", "Race", "PostRace"]
+    transitions = [
+        Transition(trigger="start", source="PreRace", dest="Race", before="start_race"),
+        Transition(trigger="finish", source="Race", dest="PostRace", before="finish_race"),
+        Transition(trigger="restart", source="PostRace", dest="PreRace"),
+    ]
     background_color = (129, 186, 68, 255)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._horse_names = open("assets/names.txt", "r").read().split("\n")
+        self.results = []
     
     def add_horses(self, names: list[str]):
-        for i in range(_HORSE_COUNT):
-            self.remove_children(name=f"Horse{i + 1}")
+        self.remove_children(name=f"Horse")
         for i, breed in enumerate(random.sample(list(range(1, _HORSE_COUNT + 1)), _HORSE_COUNT)):
-            self.add_child(HorseNode(breed=breed, number=i, race_name=names[i], name=f"Horse{i + 1}"))
+            self.add_child(HorseNode(breed=breed, number=i, race_name=names[i], name="Horse"))
 
     def enter(self):
         screen, hscreen = _screen_size()
@@ -492,6 +542,28 @@ class HorseRaces(Scene):
                                 end=Vector2([self._target, screen.y]),
                                 thickness=3,
                                 color=(255, 0, 0, 255)))
-        names = shuffled(random.sample(self._horse_names, _HORSE_COUNT))
+        names = _shuffled(random.sample(self._horse_names, _HORSE_COUNT))
         self.add_horses(names)
-        self.add_child(ScreenNode(horse_names=names))
+        self.add_child(ScreenNode(name="Screen", horse_names=names))
+        self.add_child(TimerNode(duration=5.,
+                                 on_complete=self.start))
+    
+    def start_race(self):
+        for horse in self.find_children(name="Horse"):
+            horse.race()
+        self.find_child("Screen").start()
+    
+    def finish_race(self):
+        self.results = []
+        self.remove_children(name="Horse")
+        self.find_child("Screen").finish()
+
+    def step(self, delta):
+        if self.state == "Race":
+            horses = [(horse, True) for horse in self.results] + [(horse.horse_name, False) for horse in sorted(self.find_children(name="Horse"), reverse=True, key=lambda x: x.dst.x) if not horse.finished]
+            self.find_child("Screen").update_labels(horses)
+            if len(self.results) == _HORSE_COUNT and not self.find_child(name="RestartTimer"):
+                self.add_child(TimerNode(name="RestartTimer",
+                                         duration=5.,
+                                         on_complete=self.finish))
+        super().step(delta)
