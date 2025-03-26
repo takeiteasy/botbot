@@ -304,7 +304,7 @@ class BaseFanNode(SpriteNode):
         "Shoes": "Shoes",
         "Pants": "Pants",
         "Mouth": "Mouth",
-        "Eyes": "Eye",
+        "Eyes": "Eyes",
         "Shirt": "Shirt",
         "Hairstyles": "Hair",
         "Accessories": "Acc"
@@ -315,12 +315,16 @@ class BaseFanNode(SpriteNode):
         return self.position + self.origin - (Vector2(list(self.__class__.size)) / 2.)
 
 class FanAccessoryNode(BaseFanNode):
-    def __init__(self, gender: str, body_part: str, index: int, **kwargs):
+    def __init__(self, gender: str, body: int, body_part: str, index: int, **kwargs):
         self.gender = gender
         path = self.__class__.folder_map[body_part]
         file = self.__class__.file_map[body_part]
-        if body_part == "Eyes" and self.gender == "Female":
-            file = "Eyes"
+        if body_part == "Eyes" and body == 3 and index <= 3:
+            index = f"{index}-Body03"
+        elif body_part == "Hairstyles":
+            color = random.randint(0, 5)
+            if color > 0:
+                index = f"{index}-Color0{color}"
         super().__init__(texture=Texture(f"assets/people/{self.gender}/{path}/{file}0{index}.png"),
                          **kwargs)
 
@@ -340,10 +344,10 @@ class FanNode(BaseFanNode):
                          dst=r.Rectangle(position.x, position.y, self.__class__.size[0], self.__class__.size[1]),
                          **kwargs)
         for k, v in self.accessories.items():
-            self.add_child(FanAccessoryNode(self.gender, k, v))
+            self.add_child(FanAccessoryNode(self.gender, self.body, k, v))
 
 class StandsNode(Actor):
-    def __init__(self, fan_radius:int=50, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         screen, hscreen = _screen_size()
         center = Vector2([hscreen.x / 2., -hscreen.y / 2.])
@@ -356,7 +360,7 @@ class StandsNode(Actor):
                                      width=inner_box.x,
                                      height=inner_box.y,
                                      color=(100, 100, 100, 255)))
-        points = [(p[0] + FanNode.size[0], p[1] + FanNode.size[1]) for p in _poisson_disc_sampling(inner_box.x - 50, inner_box.y - 50, fan_radius)]
+        points = [(p[0] + FanNode.size[0], p[1] + FanNode.size[1]) for p in _poisson_disc_sampling(inner_box.x - 50, inner_box.y - 50, 50)]
         fans = [FanNode(position=p) for p in [Vector2([p[0] + 25, p[1] + 25 - hscreen.y])for p in points]]
         for fan in sorted(fans, key=lambda x: x.dst.y):
             self.add_child(fan)
@@ -451,7 +455,7 @@ class ScreenNode(Actor, FiniteStateMachine):
         self._label_positions = []
         for i, name in enumerate(horse_names):
             label = LabelNode(name="HorseLabel",
-                              text=f"{name}: #{i+1} ({odds[i]}/{odds[i]*2})",
+                              text=f"{name}: #{i+1} ({odds[i]}/{odds[i]*5})",
                               font=r.get_font_default(),
                               font_size=20,
                               color=rainbow_colors[i])
